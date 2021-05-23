@@ -51,7 +51,7 @@ namespace RealSense.FaceID
         {
             InitializeComponent();
 
-            _realSenseVideoSource = new RealSenseVideoSource();
+            _realSenseVideoSource = new RealSenseVideoSource("config.json");
             _realSenseVideoSource.NewSensorsFrames += _realSenseVideoSource_NewSensorsFrames;
             _realSenseVideoSource.Start();
         }

@@ -18,6 +18,7 @@ namespace RealSense.FaceID
         private readonly Pipeline _pipeline;
         private readonly Context _ctx;
         private readonly Config _cfg;
+        private readonly Align _alignTo;
         private CancellationTokenSource _tokenSource;
         private Bitmap _colorBitmap;
         private Bitmap _colorizedDepthBitmap;
@@ -26,10 +27,10 @@ namespace RealSense.FaceID
 
         #endregion
 
-        #region Constructor
+        #region Constructors
 
         /// <summary>
-        /// Launch single Intel RealSense Camera with default <see cref="Stream.Color"/> to <see cref="Stream.Depth"/>
+        /// Create video source with default <see cref="Stream.Color"/> and <see cref="Stream.Depth"/>
         /// </summary>
         public RealSenseVideoSource()
         {
@@ -38,6 +39,8 @@ namespace RealSense.FaceID
             _pipeline = new Pipeline();
 
             _ctx = new Context();
+
+            _alignTo = new Align(Stream.Color);
 
             var devices = _ctx.QueryDevices();
             var dev = devices.FirstOrDefault();
@@ -69,7 +72,44 @@ namespace RealSense.FaceID
             _tokenSource = new CancellationTokenSource();
         }
 
-        // later create constructor with cutom config based on json file
+        /// <summary>
+        /// Create vidoe source based on json file
+        /// </summary>
+        public RealSenseVideoSource(string jsonFileName)
+        {
+            _colorizer = new Colorizer();
+
+            _pipeline = new Pipeline();
+
+            _ctx = new Context();
+
+            _alignTo = new Align(Stream.Color);
+
+            var devices = _ctx.QueryDevices();
+            var dev = devices.FirstOrDefault();
+
+            Source = dev.Info[CameraInfo.Name];
+            SerialNumber = dev.Info[CameraInfo.SerialNumber];
+            FirmwareVersion = dev.Info[CameraInfo.FirmwareVersion];
+
+            var adv = AdvancedDevice.FromDevice(dev);
+
+            var fullName = "../../../" + jsonFileName;
+            try
+            {
+                adv.JsonConfiguration = System.IO.File.ReadAllText(fullName);
+            }
+            catch
+            {
+                throw new Exception("Invalid file name, please specify parameter with valid JSON file name.");
+            }
+
+            // json config inclusion checker (debug (set breakpoint) )
+            var lpv = dev.Sensors[0].Options[Option.LaserPower].Value;
+
+            _tokenSource = new CancellationTokenSource();
+        }
+
 
         #endregion
 
@@ -160,7 +200,8 @@ namespace RealSense.FaceID
                 IsRunning = true;
                 _framesReceived = 0;
                 _bytesReceived = 0;
-                var pipelineProfile = _pipeline.Start(_cfg);
+
+                var pp = (_cfg == null) ? _pipeline.Start() : _pipeline.Start(_cfg);
 
                 Task.Factory.StartNew(() =>
                 {
@@ -168,8 +209,10 @@ namespace RealSense.FaceID
                     {
                         using (var frameset = _pipeline.WaitForFrames())
                         {
-                            using var colorFrame = frameset.ColorFrame;
-                            using var depthFrame = frameset.DepthFrame;
+                            using var alignedFrameSet = _alignTo.Process(frameset, releaser: null);
+
+                            using var colorFrame = alignedFrameSet.ColorFrame;
+                            using var depthFrame = alignedFrameSet.DepthFrame;
 
                             using var colorizedDepth = _colorizer.Process<VideoFrame>(depthFrame);
 
@@ -252,7 +295,7 @@ namespace RealSense.FaceID
                 colorBitmap.Width * colorBitmap.Height * (Bitmap.GetPixelFormatSize(colorBitmap.PixelFormat) >> 3) +
                 colorizedDepthBitmap.Width * colorizedDepthBitmap.Height * (Bitmap.GetPixelFormatSize(colorizedDepthBitmap.PixelFormat) >> 3);
 
-            // NewFrame?.Invoke(this, new NewFrameEventArgs(colorBitmap));      // delete later
+            NewFrame?.Invoke(this, new NewFrameEventArgs(colorBitmap));      // delete later?
             NewSensorsFrames?.Invoke(this, new NewSensorsEventArgs(colorBitmap, colorizedDepthBitmap));
         }
 
