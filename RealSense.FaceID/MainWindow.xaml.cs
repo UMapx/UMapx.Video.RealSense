@@ -1,28 +1,16 @@
-﻿using Intel.RealSense;
-using Intel.RealSense.Math;
-using System;
-using System.Collections.Generic;
+﻿using FaceONNX;
+using FaceONNX.Core;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
 using System.Linq;
-using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
-using System.Windows.Input;
-using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using UMapx.Core;
 using UMapx.Imaging;
-using FaceONNX;
-using FaceONNX.Core;
+using UMapx.Video.RealSense;
 
 namespace RealSense.FaceID
 {
@@ -32,7 +20,7 @@ namespace RealSense.FaceID
     public partial class MainWindow : Window
     {
         #region Fields
-
+        private readonly Grayscale _grayscale = Grayscale.BT709;
         private readonly IVideoSensorSource _realSenseVideoSource;
         private readonly FaceDetectorLight _faceDetectorLight = new FaceDetectorLight();
         private readonly Painter _painter = new Painter();
@@ -50,7 +38,8 @@ namespace RealSense.FaceID
         {
             InitializeComponent();
 
-            _realSenseVideoSource = new RealSenseVideoSource("Configurations/config.json");
+            var config = File.ReadAllText("Configurations/HighResHighAccuracyPreset.json");
+            _realSenseVideoSource = new RealSenseVideoSource();
             _realSenseVideoSource.NewSensorsFrames += _realSenseVideoSource_NewSensorsFrames;
             _realSenseVideoSource.Start();
         }
@@ -194,12 +183,6 @@ namespace RealSense.FaceID
             _procTask = null;
         }
 
-        private readonly Grayscale _grayscale = Grayscale.BT709;
-        private readonly InvertChannels _invertChannels = new InvertChannels(Space.YCbCr);
-        private readonly HistogramEqualization _histogramEqualization = new HistogramEqualization();
-        private readonly LocalContrastEnhancement singleScaleRetinex = new LocalContrastEnhancement(10, Space.RGB, 2);
-        private readonly Convolution convolution = Convolution.Roberts();
-
         /// <summary>
         /// Draw calculated <see cref="BitmapImage"/> based on <see cref="RealSenseVideoSource"/> bitmap converted frames
         /// in <see cref="Window"/> Image element
@@ -221,39 +204,49 @@ namespace RealSense.FaceID
                 {
                     lock (_locker) _painter.Draw(printColor, paintData);
 
-                    var bitmapColor = Helpers.ToBitmapImage(printColor);
+                    var bitmapColor = ToBitmapImage(printColor);
                     bitmapColor.Freeze();
                     Dispatcher.BeginInvoke(new ThreadStart(delegate { imgColor.Source = bitmapColor; }));
                 }
 
                 // depth drawing
                 var printDepth = DepthBitmap;
-                var cropped = BitmapTransform.Crop(printDepth, Rectangle);
-                
-                var array = BitmapMatrix.ToGrayscale(cropped);
-                array = array.Conv(new float[,] { { 1, 1 }, { -1, -1 } }).Mul(20).Add(0.5f);
-                cropped = BitmapMatrix.FromGrayscale(array);
-
-                //convolution.Apply(cropped);
-                //_grayscale.Apply(cropped);
-                //_histogramEqualization.Apply(cropped);
-                //_invertChannels.Apply(cropped);
-
-                BitmapTransform.Merge(printDepth, cropped, Rectangle);
-                cropped.Dispose();
+                _grayscale.Apply(printDepth);
 
                 if (printDepth is object)
                 {
                     lock (_locker) _painter.Draw(printDepth, paintData);
 
-                    var bitmapDepth = Helpers.ToBitmapImage(printDepth);
+                    var bitmapDepth = ToBitmapImage(printDepth);
                     bitmapDepth.Freeze();
                     Dispatcher.BeginInvoke(new ThreadStart(delegate { imgDepth.Source = bitmapDepth; }));
                 }
             }
-            catch { }   // skip corrupted or empty frame
+            catch { }
         }
 
         #endregion
+
+        #region Helper
+
+        /// <summary>
+        /// Converts a <see cref="Bitmap"/> to <see cref="BitmapImage"/> 
+        /// </summary>
+        /// <param name="bitmap"></param>
+        /// <returns></returns>
+        public static BitmapImage ToBitmapImage(Bitmap bitmap)
+        {
+            var bi = new BitmapImage();
+            bi.BeginInit();
+            var ms = new System.IO.MemoryStream();
+            bitmap.Save(ms, ImageFormat.Bmp);
+            ms.Seek(0, System.IO.SeekOrigin.Begin);
+            bi.StreamSource = ms;
+            bi.EndInit();
+            return bi;
+        }
+
+        #endregion
+
     }
 }

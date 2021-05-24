@@ -4,11 +4,9 @@ using System.Drawing;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Windows.Media;
-using UMapx.Video;
-using static RealSense.FaceID.SensorEvents;
+using static UMapx.Video.RealSense.SensorEvents;
 
-namespace RealSense.FaceID
+namespace UMapx.Video.RealSense
 {
     public class RealSenseVideoSource : IVideoSensorSource, IDisposable
     {
@@ -16,7 +14,6 @@ namespace RealSense.FaceID
 
         private readonly Colorizer _colorizer;
         private readonly Pipeline _pipeline;
-        private readonly Context _ctx;
         private readonly Config _cfg;
         private readonly Align _alignTo;
         private CancellationTokenSource _tokenSource;
@@ -32,87 +29,61 @@ namespace RealSense.FaceID
         /// <summary>
         /// Create video source with default <see cref="Stream.Color"/> and <see cref="Stream.Depth"/>
         /// </summary>
-        public RealSenseVideoSource()
+        public RealSenseVideoSource(string json = null)
         {
             _colorizer = new Colorizer();
-
             _pipeline = new Pipeline();
-
-            _ctx = new Context();
-
             _alignTo = new Align(Stream.Color);
 
-            var devices = _ctx.QueryDevices();
+            using var ctx = new Context();
+            var devices = ctx.QueryDevices();
             var dev = devices.FirstOrDefault();
 
             Source = dev.Info[CameraInfo.Name];
             SerialNumber = dev.Info[CameraInfo.SerialNumber];
             FirmwareVersion = dev.Info[CameraInfo.FirmwareVersion];
 
+            if (json is object)
+            {
+                var adv = AdvancedDevice.FromDevice(dev);
+                adv.JsonConfiguration = json;
+            }
+
             var sensors = dev.Sensors;
 
             var depthSensor = sensors[0];
-            var depthProfile = depthSensor.StreamProfiles
+            var depthProfiles = depthSensor.StreamProfiles
                                 .Where(p => p.Stream == Stream.Depth)
+                                .Where(p => p.Format == Format.Z16)
                                 .OrderBy(p => p.Framerate)
-                                .Select(p => p.As<VideoStreamProfile>()).First();
+                                .Select(p => p.As<VideoStreamProfile>()).ToArray();
 
+            var depthProfile = depthProfiles.First();
 
             var colorSensor = sensors[1];
-            var colorProfile = colorSensor.StreamProfiles
+            var colorProfiles = colorSensor.StreamProfiles
                                 .Where(p => p.Stream == Stream.Color)
+                                .Where(p => p.Format == Format.Rgb8)
                                 .OrderBy(p => p.Framerate)
-                                .Select(p => p.As<VideoStreamProfile>()).First();
+                                .Select(p => p.As<VideoStreamProfile>()).ToArray();
+
+            var colorProfile = colorProfiles.First();
 
             _cfg = new Config();
 
             _cfg.EnableStream(Stream.Depth, depthProfile.Width, depthProfile.Height, depthProfile.Format, depthProfile.Framerate);
             _cfg.EnableStream(Stream.Color, colorProfile.Width, colorProfile.Height, colorProfile.Format, colorProfile.Framerate);
 
-
-
             _tokenSource = new CancellationTokenSource();
         }
-
-        /// <summary>
-        /// Create vidoe source based on json file
-        /// </summary>
-        public RealSenseVideoSource(string jsonFileName)
-        {
-            _colorizer = new Colorizer();
-
-            _pipeline = new Pipeline();
-
-            _ctx = new Context();
-
-            _alignTo = new Align(Stream.Color);
-
-            var devices = _ctx.QueryDevices();
-            var dev = devices.FirstOrDefault();
-
-            Source = dev.Info[CameraInfo.Name];
-            SerialNumber = dev.Info[CameraInfo.SerialNumber];
-            FirmwareVersion = dev.Info[CameraInfo.FirmwareVersion];
-
-            var adv = AdvancedDevice.FromDevice(dev);
-
-            try
-            {
-                adv.JsonConfiguration = System.IO.File.ReadAllText(jsonFileName);
-            }
-            catch
-            {
-                throw new Exception("Invalid file name, please specify parameter with valid JSON file name.");
-            }
-
-            _tokenSource = new CancellationTokenSource();
-        }
-
 
         #endregion
 
         #region Methods
 
+        /// <summary>
+        /// 
+        /// </summary>
         public string Source { get; private set; }
 
         /// <summary>
@@ -179,8 +150,14 @@ namespace RealSense.FaceID
         /// </summary>
         public event NewFrameEventHandler NewFrame;
 
+        /// <summary>
+        /// 
+        /// </summary>
         public event VideoSourceErrorEventHandler VideoSourceError;
 
+        /// <summary>
+        /// 
+        /// </summary>
         public event PlayingFinishedEventHandler PlayingFinished;
 
         /// <summary>
@@ -199,7 +176,7 @@ namespace RealSense.FaceID
                 _framesReceived = 0;
                 _bytesReceived = 0;
 
-                var pp = (_cfg == null) ? _pipeline.Start() : _pipeline.Start(_cfg);
+                using var pp = _pipeline.Start(_cfg);
 
                 Task.Factory.StartNew(() =>
                 {
@@ -207,11 +184,11 @@ namespace RealSense.FaceID
                     {
                         using (var frameset = _pipeline.WaitForFrames())
                         {
-                            using var alignedFrameSet = _alignTo.Process(frameset, releaser: null);
+                            using var alignedFrameSet = _alignTo.Process(frameset, null);
 
                             using var colorFrame = alignedFrameSet.ColorFrame;
                             using var depthFrame = alignedFrameSet.DepthFrame;
-
+                            
                             using var colorizedDepth = _colorizer.Process<VideoFrame>(depthFrame);
 
                             _colorBitmap?.Dispose();
@@ -247,8 +224,8 @@ namespace RealSense.FaceID
         /// 
         public void Stop()
         {
-            _tokenSource.Cancel();
-            _tokenSource.Dispose();
+            _tokenSource?.Cancel();
+            _tokenSource?.Dispose();
             _tokenSource = new CancellationTokenSource();
             PlayingFinished?.Invoke(this, ReasonToFinishPlaying.StoppedByUser);
             IsRunning = false;
@@ -307,8 +284,8 @@ namespace RealSense.FaceID
         public void Dispose()
         {
             _colorizer?.Dispose();
+            _alignTo?.Dispose();
             _pipeline?.Dispose();
-            _ctx?.Dispose();
             _cfg?.Dispose();
             _tokenSource?.Dispose();
             _colorBitmap?.Dispose();

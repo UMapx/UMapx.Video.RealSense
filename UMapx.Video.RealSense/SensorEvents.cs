@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Drawing;
 
-namespace RealSense.FaceID
+namespace UMapx.Video.RealSense
 {
     /// <summary>
     /// Sensor event handler class

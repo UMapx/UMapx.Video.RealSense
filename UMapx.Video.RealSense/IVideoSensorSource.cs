@@ -1,7 +1,7 @@
 ﻿using UMapx.Video;
-using static RealSense.FaceID.SensorEvents;
+using static UMapx.Video.RealSense.SensorEvents;
 
-namespace RealSense.FaceID
+namespace UMapx.Video.RealSense
 {
     /// <summary>
     /// Extension interface for handling Intel RealSense sensor events
