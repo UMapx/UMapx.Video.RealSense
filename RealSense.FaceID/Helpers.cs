@@ -1,13 +1,9 @@
 ﻿using Intel.RealSense;
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
-using System.Text;
-using System.Windows;
-using System.Windows.Interop;
-using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using UMapx.Core;
 using UMapx.Imaging;
 
 namespace RealSense.FaceID
@@ -18,16 +14,15 @@ namespace RealSense.FaceID
         /// Unsafely converts a <see cref="VideoFrame"/> to <see cref="Bitmap"/>
         /// </summary>
         /// <param name="frame">Frame value</param>
-        /// <param name="pixelFormat"></param>
         /// <returns></returns>
-        public unsafe static Bitmap ToBitmap(VideoFrame frame, System.Windows.Media.PixelFormat pixelFormat)
+        public unsafe static Bitmap ToBitmap(VideoFrame frame)
         {
             var width = frame.Width;
             var height = frame.Height;
 
             var rectangle = new Rectangle(0, 0, width, height);
             var bitmap = new Bitmap(width, height);
-            var bmData = bitmap.LockBits(rectangle, ImageLockMode.ReadWrite, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            var bmData = bitmap.LockBits(rectangle, ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
             var dst = (byte*)bmData.Scan0.ToPointer();
             var src = (byte*)frame.Data.ToPointer();
 
@@ -43,6 +38,35 @@ namespace RealSense.FaceID
 
             bitmap.Unlock(bmData);
             return bitmap;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="frame"></param>
+        /// <returns></returns>
+        public unsafe static float[,] ToArray(VideoFrame frame)
+        {
+            var width = frame.Width;
+            var height = frame.Height;
+            var stride = frame.Stride;
+
+            var rectangle = new Rectangle(0, 0, width, height);
+            var src = (byte*)frame.Data.ToPointer();
+            var dst = new float[height, width];
+
+            for (int x = 0; x < width; x++)
+            {
+                for (int y = 0; y < height; y++)
+                {
+                    var k = x * 2 + stride * y;
+                    //var bytes = new byte[] { src[k + 1], src[k + 0] };
+                    //var val = src[k];
+                    dst[y, x] = ((uint)src[k + 1] << 8) + src[k];
+                }
+            }
+
+            return Normalize(dst);
         }
 
         /// <summary>
@@ -62,5 +86,12 @@ namespace RealSense.FaceID
             return bi;
         }
 
+        public static float[,] Normalize(float[,] array)
+        {
+            var max = array.Max().Max();
+            var min = array.Min().Min();
+
+            return array.Sub(min).Div(max - min);
+        }
     }
 }

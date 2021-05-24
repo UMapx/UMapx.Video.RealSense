@@ -34,7 +34,6 @@ namespace RealSense.FaceID
         #region Fields
 
         private readonly IVideoSensorSource _realSenseVideoSource;
-        private readonly Grayscale _grayscale = Grayscale.BT709;
         private readonly FaceDetectorLight _faceDetectorLight = new FaceDetectorLight();
         private readonly Painter _painter = new Painter();
         private static object _locker = new object();
@@ -51,7 +50,7 @@ namespace RealSense.FaceID
         {
             InitializeComponent();
 
-            _realSenseVideoSource = new RealSenseVideoSource("config.json");
+            _realSenseVideoSource = new RealSenseVideoSource("Configurations/config.json");
             _realSenseVideoSource.NewSensorsFrames += _realSenseVideoSource_NewSensorsFrames;
             _realSenseVideoSource.Start();
         }
@@ -158,7 +157,6 @@ namespace RealSense.FaceID
             var tempDepth = (Bitmap)frames[1].Clone();
 
             ColorBitmap = tempColor;
-            _grayscale.Apply(tempDepth);
             DepthBitmap = tempDepth;
 
             InvokeDrawing();
@@ -196,6 +194,12 @@ namespace RealSense.FaceID
             _procTask = null;
         }
 
+        private readonly Grayscale _grayscale = Grayscale.BT709;
+        private readonly InvertChannels _invertChannels = new InvertChannels(Space.YCbCr);
+        private readonly HistogramEqualization _histogramEqualization = new HistogramEqualization();
+        private readonly LocalContrastEnhancement singleScaleRetinex = new LocalContrastEnhancement(10, Space.RGB, 2);
+        private readonly Convolution convolution = Convolution.Roberts();
+
         /// <summary>
         /// Draw calculated <see cref="BitmapImage"/> based on <see cref="RealSenseVideoSource"/> bitmap converted frames
         /// in <see cref="Window"/> Image element
@@ -224,6 +228,19 @@ namespace RealSense.FaceID
 
                 // depth drawing
                 var printDepth = DepthBitmap;
+                var cropped = BitmapTransform.Crop(printDepth, Rectangle);
+                
+                var array = BitmapMatrix.ToGrayscale(cropped);
+                array = array.Conv(new float[,] { { 1, 1 }, { -1, -1 } }).Mul(20).Add(0.5f);
+                cropped = BitmapMatrix.FromGrayscale(array);
+
+                //convolution.Apply(cropped);
+                //_grayscale.Apply(cropped);
+                //_histogramEqualization.Apply(cropped);
+                //_invertChannels.Apply(cropped);
+
+                BitmapTransform.Merge(printDepth, cropped, Rectangle);
+                cropped.Dispose();
 
                 if (printDepth is object)
                 {

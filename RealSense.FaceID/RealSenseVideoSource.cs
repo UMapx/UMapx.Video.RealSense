@@ -69,6 +69,8 @@ namespace RealSense.FaceID
             _cfg.EnableStream(Stream.Depth, depthProfile.Width, depthProfile.Height, depthProfile.Format, depthProfile.Framerate);
             _cfg.EnableStream(Stream.Color, colorProfile.Width, colorProfile.Height, colorProfile.Format, colorProfile.Framerate);
 
+
+
             _tokenSource = new CancellationTokenSource();
         }
 
@@ -94,18 +96,14 @@ namespace RealSense.FaceID
 
             var adv = AdvancedDevice.FromDevice(dev);
 
-            var fullName = "../../../" + jsonFileName;
             try
             {
-                adv.JsonConfiguration = System.IO.File.ReadAllText(fullName);
+                adv.JsonConfiguration = System.IO.File.ReadAllText(jsonFileName);
             }
             catch
             {
                 throw new Exception("Invalid file name, please specify parameter with valid JSON file name.");
             }
-
-            // json config inclusion checker (debug (set breakpoint) )
-            var lpv = dev.Sensors[0].Options[Option.LaserPower].Value;
 
             _tokenSource = new CancellationTokenSource();
         }
@@ -219,8 +217,8 @@ namespace RealSense.FaceID
                             _colorBitmap?.Dispose();
                             _colorizedDepthBitmap?.Dispose();
 
-                            _colorBitmap = Helpers.ToBitmap(colorFrame, PixelFormats.Rgb24);
-                            _colorizedDepthBitmap = Helpers.ToBitmap(colorizedDepth, PixelFormats.Rgb24);
+                            _colorBitmap = Helpers.ToBitmap(colorFrame);
+                            _colorizedDepthBitmap = Helpers.ToBitmap(colorizedDepth);
 
                             OnNewFrame(_colorBitmap, _colorizedDepthBitmap);
                         }
@@ -295,7 +293,7 @@ namespace RealSense.FaceID
                 colorBitmap.Width * colorBitmap.Height * (Bitmap.GetPixelFormatSize(colorBitmap.PixelFormat) >> 3) +
                 colorizedDepthBitmap.Width * colorizedDepthBitmap.Height * (Bitmap.GetPixelFormatSize(colorizedDepthBitmap.PixelFormat) >> 3);
 
-            NewFrame?.Invoke(this, new NewFrameEventArgs(colorBitmap));      // delete later?
+            NewFrame?.Invoke(this, new NewFrameEventArgs(colorBitmap));
             NewSensorsFrames?.Invoke(this, new NewSensorsEventArgs(colorBitmap, colorizedDepthBitmap));
         }
 
