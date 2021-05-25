@@ -5,7 +5,7 @@ using UMapx.Imaging;
 
 namespace UMapx.Video.RealSense
 {
-    public static class Helpers
+    internal static class Helpers
     {
         /// <summary>
         /// Unsafely converts a <see cref="VideoFrame"/> to <see cref="Bitmap"/>

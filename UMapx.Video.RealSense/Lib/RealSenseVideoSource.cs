@@ -11,11 +11,9 @@ namespace UMapx.Video.RealSense
     public class RealSenseVideoSource : IVideoSensorSource, IDisposable
     {
         #region Fields
-
-        private readonly Colorizer _colorizer;
+        
+        private readonly Device _device;
         private readonly Pipeline _pipeline;
-        private readonly Config _cfg;
-        private readonly Align _alignTo;
         private CancellationTokenSource _tokenSource;
         private Bitmap _colorBitmap;
         private Bitmap _colorizedDepthBitmap;
@@ -31,50 +29,20 @@ namespace UMapx.Video.RealSense
         /// </summary>
         public RealSenseVideoSource(string json = null)
         {
-            _colorizer = new Colorizer();
-            _pipeline = new Pipeline();
-            _alignTo = new Align(Stream.Color);
-
             using var ctx = new Context();
-            var devices = ctx.QueryDevices();
-            var dev = devices.FirstOrDefault();
+            using var devices = ctx.QueryDevices();
+            _device = devices.FirstOrDefault();
+            _pipeline = new Pipeline();
 
-            Source = dev.Info[CameraInfo.Name];
-            SerialNumber = dev.Info[CameraInfo.SerialNumber];
-            FirmwareVersion = dev.Info[CameraInfo.FirmwareVersion];
+            Source = _device.Info[CameraInfo.Name];
+            SerialNumber = _device.Info[CameraInfo.SerialNumber];
+            FirmwareVersion = _device.Info[CameraInfo.FirmwareVersion];
 
             if (json is object)
             {
-                var adv = AdvancedDevice.FromDevice(dev);
+                var adv = AdvancedDevice.FromDevice(_device);
                 adv.JsonConfiguration = json;
             }
-
-            var sensors = dev.Sensors;
-
-            var depthSensor = sensors[0];
-            var depthProfiles = depthSensor.StreamProfiles
-                                .Where(p => p.Stream == Stream.Depth)
-                                .Where(p => p.Format == Format.Z16)
-                                .OrderBy(p => p.Framerate)
-                                .Select(p => p.As<VideoStreamProfile>()).ToArray();
-
-            var depthProfile = depthProfiles.First();
-
-            var colorSensor = sensors[1];
-            var colorProfiles = colorSensor.StreamProfiles
-                                .Where(p => p.Stream == Stream.Color)
-                                .Where(p => p.Format == Format.Rgb8)
-                                .OrderBy(p => p.Framerate)
-                                .Select(p => p.As<VideoStreamProfile>()).ToArray();
-
-            var colorProfile = colorProfiles.First();
-
-            _cfg = new Config();
-
-            _cfg.EnableStream(Stream.Depth, depthProfile.Width, depthProfile.Height, depthProfile.Format, depthProfile.Framerate);
-            _cfg.EnableStream(Stream.Color, colorProfile.Width, colorProfile.Height, colorProfile.Format, colorProfile.Framerate);
-
-            _tokenSource = new CancellationTokenSource();
         }
 
         #endregion
@@ -172,11 +140,37 @@ namespace UMapx.Video.RealSense
         {
             try
             {
-                IsRunning = true;
+                var sensors = _device.Sensors;
+
+                using var depthSensor = sensors[0];
+                var depthProfiles = depthSensor.StreamProfiles
+                                    .Where(p => p.Stream == Stream.Depth)
+                                    .Where(p => p.Format == Format.Z16)
+                                    .OrderBy(p => p.Framerate)
+                                    .Select(p => p.As<VideoStreamProfile>()).ToArray();
+
+                var depthProfile = depthProfiles.First();
+
+                using var colorSensor = sensors[1];
+                var colorProfiles = colorSensor.StreamProfiles
+                                    .Where(p => p.Stream == Stream.Color)
+                                    .Where(p => p.Format == Format.Rgb8)
+                                    .OrderBy(p => p.Framerate)
+                                    .Select(p => p.As<VideoStreamProfile>()).ToArray();
+
+                using var colorProfile = colorProfiles.First();
+
+                using var cfg = new Config();
+
+                cfg.EnableStream(Stream.Depth, depthProfile.Width, depthProfile.Height, depthProfile.Format, depthProfile.Framerate);
+                cfg.EnableStream(Stream.Color, colorProfile.Width, colorProfile.Height, colorProfile.Format, colorProfile.Framerate);
+
+                _tokenSource = new CancellationTokenSource();
                 _framesReceived = 0;
                 _bytesReceived = 0;
 
-                using var pp = _pipeline.Start(_cfg);
+                using var pp = _pipeline.Start(cfg);
+                IsRunning = true;
 
                 Task.Factory.StartNew(() =>
                 {
@@ -184,18 +178,22 @@ namespace UMapx.Video.RealSense
                     {
                         using (var frameset = _pipeline.WaitForFrames())
                         {
-                            using var alignedFrameSet = _alignTo.Process(frameset, null);
+                            using var colorizer = new Colorizer();
+                            using var align = new Align(Stream.Color);
 
-                            using var colorFrame = alignedFrameSet.ColorFrame;
-                            using var depthFrame = alignedFrameSet.DepthFrame;
-                            
-                            using var colorizedDepth = _colorizer.Process<VideoFrame>(depthFrame);
+                            using var aligned = align.Process(frameset);
+                            using var alignedframeset = aligned.As<FrameSet>();
+
+                            using var colorFrame = alignedframeset.ColorFrame;
+                            using var depthFrame = alignedframeset.DepthFrame;
+
+                            using var colorizedDepth = colorizer.Process<VideoFrame>(depthFrame);
 
                             _colorBitmap?.Dispose();
                             _colorizedDepthBitmap?.Dispose();
 
-                            _colorBitmap = Helpers.ToBitmap(colorFrame);
-                            _colorizedDepthBitmap = Helpers.ToBitmap(colorizedDepth);
+                            _colorBitmap = colorFrame.ToBitmap();
+                            _colorizedDepthBitmap = colorizedDepth.ToBitmap();
 
                             OnNewFrame(_colorBitmap, _colorizedDepthBitmap);
                         }
@@ -225,8 +223,6 @@ namespace UMapx.Video.RealSense
         public void Stop()
         {
             _tokenSource?.Cancel();
-            _tokenSource?.Dispose();
-            _tokenSource = new CancellationTokenSource();
             PlayingFinished?.Invoke(this, ReasonToFinishPlaying.StoppedByUser);
             IsRunning = false;
         }
@@ -258,20 +254,25 @@ namespace UMapx.Video.RealSense
         #endregion
 
         #region Private voids
+
         /// <summary>
         /// Called when video source gets new frame
         /// </summary>
         /// <param name="colorBitmap"></param>
-        /// <param name="colorizedDepthBitmap"></param>
-        private void OnNewFrame(Bitmap colorBitmap, Bitmap colorizedDepthBitmap)
+        private void OnNewFrame(params Bitmap[] bitmap)
         {
-            _framesReceived++;
-            _bytesReceived += 
-                colorBitmap.Width * colorBitmap.Height * (Bitmap.GetPixelFormatSize(colorBitmap.PixelFormat) >> 3) +
-                colorizedDepthBitmap.Width * colorizedDepthBitmap.Height * (Bitmap.GetPixelFormatSize(colorizedDepthBitmap.PixelFormat) >> 3);
+            int count = bitmap.Length;
 
-            NewFrame?.Invoke(this, new NewFrameEventArgs(colorBitmap));
-            NewSensorsFrames?.Invoke(this, new NewSensorsEventArgs(colorBitmap, colorizedDepthBitmap));
+            for (int i = 0; i < count; i++)
+            {
+                var current = bitmap[i];
+
+                _framesReceived++;
+                _bytesReceived += current.Width * current.Height * (Bitmap.GetPixelFormatSize(current.PixelFormat) >> 3);
+            }
+
+            NewSensorsFrames?.Invoke(this, new NewSensorsEventArgs(bitmap));
+            NewFrame?.Invoke(this, new NewFrameEventArgs(bitmap.FirstOrDefault()));
         }
 
         #endregion
@@ -283,10 +284,7 @@ namespace UMapx.Video.RealSense
         /// </summary>
         public void Dispose()
         {
-            _colorizer?.Dispose();
-            _alignTo?.Dispose();
             _pipeline?.Dispose();
-            _cfg?.Dispose();
             _tokenSource?.Dispose();
             _colorBitmap?.Dispose();
             _colorizedDepthBitmap?.Dispose();
