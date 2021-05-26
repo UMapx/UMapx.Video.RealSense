@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using UMapx.Imaging;
 using UMapx.Video.DirectShow;
 using static UMapx.Video.RealSense.SensorEvents;
 
@@ -18,7 +19,7 @@ namespace UMapx.Video.RealSense
         private VideoCapabilities[] _videoResolution;
         private CancellationTokenSource _tokenSource;
         private Bitmap _colorBitmap;
-        private Bitmap _colorizedDepthBitmap;
+        private ushort[,] _colorizedDepthBitmap;
         private int _framesReceived;
         private long _bytesReceived;
 
@@ -182,8 +183,16 @@ namespace UMapx.Video.RealSense
                                     .Select(p => p.As<VideoStreamProfile>()).ToArray();
 
                 using var depthProfile = depthProfiles.First();
-                var depthResolution = _videoResolution[0];
-                config.EnableStream(Stream.Depth, depthResolution.FrameSize.Width, depthResolution.FrameSize.Height, depthProfile.Format, depthResolution.AverageFrameRate);
+                var depthResolution = _videoResolution?[0];
+
+                if (depthResolution is object)
+                {
+                    config.EnableStream(Stream.Depth, depthResolution.FrameSize.Width, depthResolution.FrameSize.Height, depthProfile.Format, depthResolution.AverageFrameRate);
+                }
+                else
+                {
+                    config.EnableStream(Stream.Depth, depthProfile.Width, depthProfile.Height, depthProfile.Format, depthProfile.Framerate);
+                }
 
                 // rgb sensor
                 using var colorSensor = sensors[1];
@@ -194,9 +203,16 @@ namespace UMapx.Video.RealSense
                                     .Select(p => p.As<VideoStreamProfile>()).ToArray();
 
                 using var colorProfile = colorProfiles.First();
-                var colorResolution = _videoResolution[1];
-                
-                config.EnableStream(Stream.Color, colorResolution.FrameSize.Width, colorResolution.FrameSize.Height, colorProfile.Format, colorResolution.AverageFrameRate);
+                var colorResolution = _videoResolution?[1];
+
+                if (colorResolution is object)
+                {
+                    config.EnableStream(Stream.Color, colorResolution.FrameSize.Width, colorResolution.FrameSize.Height, colorProfile.Format, colorResolution.AverageFrameRate);
+                }
+                else
+                {
+                    config.EnableStream(Stream.Color, colorProfile.Width, colorProfile.Height, colorProfile.Format, colorProfile.Framerate);
+                }
 
                 // options
                 _tokenSource = new CancellationTokenSource();
@@ -221,13 +237,13 @@ namespace UMapx.Video.RealSense
                             using var colorFrame = alignedframeset.ColorFrame;
                             using var depthFrame = alignedframeset.DepthFrame;
 
-                            using var colorizedDepth = colorizer.Process<VideoFrame>(depthFrame);
+                            //using var colorizedDepth = colorizer.Process<VideoFrame>(depthFrame);
 
+                            // TODO??
                             _colorBitmap?.Dispose();
-                            _colorizedDepthBitmap?.Dispose();
 
                             _colorBitmap = colorFrame.ToBitmap();
-                            _colorizedDepthBitmap = colorizedDepth.ToBitmap();
+                            _colorizedDepthBitmap = depthFrame.ToArray();
 
                             OnNewFrames(_colorBitmap, _colorizedDepthBitmap);
                         }
@@ -294,20 +310,13 @@ namespace UMapx.Video.RealSense
         /// Called when video source gets new frame
         /// </summary>
         /// <param name="colorBitmap"></param>
-        protected void OnNewFrames(params Bitmap[] frames)
+        protected void OnNewFrames(Bitmap frame, ushort[,] depth)
         {
-            int count = frames.Length;
+            _framesReceived++;
+            _bytesReceived += frame.Width * frame.Height * (Image.GetPixelFormatSize(frame.PixelFormat) >> 3);
 
-            for (int i = 0; i < count; i++)
-            {
-                var current = frames[i];
-
-                _framesReceived++;
-                _bytesReceived += current.Width * current.Height * (Image.GetPixelFormatSize(current.PixelFormat) >> 3);
-            }
-
-            NewSensorsFrames?.Invoke(this, new NewSensorsEventArgs(frames));
-            NewFrame?.Invoke(this, new NewFrameEventArgs(frames.FirstOrDefault()));
+            NewSensorsFrames?.Invoke(this, new NewSensorsEventArgs(frame, depth));
+            NewFrame?.Invoke(this, new NewFrameEventArgs(frame));
         }
 
         #endregion
@@ -323,7 +332,6 @@ namespace UMapx.Video.RealSense
             _pipeline?.Dispose();
             _tokenSource?.Dispose();
             _colorBitmap?.Dispose();
-            _colorizedDepthBitmap?.Dispose();
         }
 
         #endregion

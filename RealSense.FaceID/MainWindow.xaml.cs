@@ -9,6 +9,7 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
+using UMapx.Core;
 using UMapx.Imaging;
 using UMapx.Video.RealSense;
 
@@ -26,7 +27,7 @@ namespace RealSense.FaceID
         private readonly Painter _painter = new Painter();
         private static object _locker = new object();
         private Bitmap _frame;
-        private Bitmap _depthFrame;
+        private ushort[,] _depthFrame;
         private Thread _procTask = null;
         private System.Drawing.Rectangle _rectangle;
 
@@ -85,18 +86,18 @@ namespace RealSense.FaceID
         /// <summary>
         /// Get Depth Bitmap and dispose previous
         /// </summary>
-        Bitmap DepthBitmap
+        ushort[,] DepthBitmap
         {
             get
             {
                 if (_depthFrame is null)
                     return null;
 
-                Bitmap depthFrame;
+                ushort[,] depthFrame;
 
                 lock (_locker)
                 {
-                    depthFrame = (Bitmap)_depthFrame.Clone();
+                    depthFrame = (ushort[,])_depthFrame.Clone();
                 }
 
                 return depthFrame;
@@ -107,7 +108,6 @@ namespace RealSense.FaceID
                 {
                     if (_depthFrame is object)
                     {
-                        _depthFrame.Dispose();
                         _depthFrame = null;
                     }
 
@@ -141,9 +141,8 @@ namespace RealSense.FaceID
         /// <param name="eventArgs"></param>
         private void _realSenseVideoSource_NewSensorsFrames(object sender, NewSensorsEventArgs eventArgs)
         {
-            var frames = eventArgs.Frames;
-            var tempColor = (Bitmap)frames[0].Clone();
-            var tempDepth = (Bitmap)frames[1].Clone();
+            var tempColor = (Bitmap)eventArgs.Frame.Clone();
+            var tempDepth = (ushort[,])eventArgs.Depth.Clone();
 
             ColorBitmap = tempColor;
             DepthBitmap = tempDepth;
@@ -154,7 +153,7 @@ namespace RealSense.FaceID
             if (_procTask == null)
             {
                 // main process
-                _procTask = new Thread(() => ProcessFrame(ColorBitmap))
+                _procTask = new Thread(() => ProcessFrame(ColorBitmap, DepthBitmap))
                 {
                     IsBackground = true,
                     Priority = ThreadPriority.Lowest
@@ -167,7 +166,7 @@ namespace RealSense.FaceID
         /// Frame processing for face recognition
         /// </summary>
         /// <param name="imageFrame"></param>
-        private void ProcessFrame(Bitmap imageFrame)
+        private void ProcessFrame(Bitmap imageFrame, ushort[,] depthFrame)
         {
             // color
             Rectangle = _faceDetectorLight.Forward(imageFrame).FirstOrDefault();
@@ -210,8 +209,15 @@ namespace RealSense.FaceID
                 }
 
                 // depth drawing
-                var printDepth = DepthBitmap;
-                _grayscale.Apply(printDepth);
+                var depth = DepthBitmap;
+                var depthBitmap = depth.ToBitmap();
+
+                var cropped = depth.Crop(_rectangle).Equalize();
+                var croppedBitmap = cropped.FromGrayscale();
+
+                BitmapTransform.Merge(depthBitmap, croppedBitmap, _rectangle);
+
+                var printDepth = depthBitmap;
 
                 if (printDepth is object)
                 {

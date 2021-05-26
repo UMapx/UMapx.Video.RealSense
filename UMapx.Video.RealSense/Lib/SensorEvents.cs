@@ -23,15 +23,21 @@ namespace UMapx.Video.RealSense
         /// 
         /// <param name="frames">New frame.</param>
         /// 
-        public NewSensorsEventArgs(params Bitmap[] frames)
+        public NewSensorsEventArgs(Bitmap frame, ushort[,] depth)
         {
-            this.Frames = frames;
+            this.Frame = frame;
+            this.Depth = depth;
         }
 
         /// <summary>
         /// New frame from video source.
         /// </summary>
         /// 
-        public Bitmap[] Frames { get; private set; }
+        public Bitmap Frame { get; private set; }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        public ushort[,] Depth { get; private set; }
     }
 }
