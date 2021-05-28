@@ -6,7 +6,7 @@ using UMapx.Imaging;
 namespace UMapx.Video.RealSense
 {
     /// <summary>
-    /// Internal class to convert RealSense frames into Bitmaps.
+    /// Internal class to convert RealSense frames into bitmaps.
     /// </summary>
     internal static class RealSenseConverter
     {

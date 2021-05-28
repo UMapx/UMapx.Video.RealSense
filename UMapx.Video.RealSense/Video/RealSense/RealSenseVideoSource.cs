@@ -39,7 +39,6 @@ namespace UMapx.Video.RealSense
         /// <summary>
         /// Creates video source for Intel RealSense Depth camera.
         /// </summary>
-        /// <param name="json">Json configuration</param>
         public RealSenseVideoSource()
         {
             using var ctx = new Context();
