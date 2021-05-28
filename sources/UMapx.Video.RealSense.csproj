@@ -41,4 +41,10 @@
     </None>
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Update="C:\Users\Valery\.nuget\packages\intel.realsensewithnativedll\2.36.0\build\\realsense2.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
