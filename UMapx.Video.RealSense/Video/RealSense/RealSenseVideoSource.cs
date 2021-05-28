@@ -11,6 +11,11 @@ namespace UMapx.Video.RealSense
 {
     /// <summary>
     /// Video source for Intel RealSense Depth camera.
+    /// <remarks>
+    /// This video source class captures video data from Intel RealSense Depth camera.
+    /// More information can be found on the website:
+    /// https://www.intelrealsense.com/stereo-depth/
+    /// </remarks>
     /// </summary>
     public class RealSenseVideoSource : IVideoDepthSource, IVideoSource, IDisposable
     {
@@ -18,6 +23,7 @@ namespace UMapx.Video.RealSense
 
         private readonly Device _device;
         private readonly Pipeline _pipeline;
+        private Config _config = new Config();
         private VideoCapabilities _videoResolution;
         private VideoCapabilities _depthResolution;
         private CancellationTokenSource _tokenSource;
@@ -122,10 +128,6 @@ namespace UMapx.Video.RealSense
         /// </summary>
         public string FirmwareVersion { get; private set; }
 
-        #endregion
-
-        #region Methods
-
         /// <summary>
         /// Received frames count.
         /// </summary>
@@ -168,7 +170,11 @@ namespace UMapx.Video.RealSense
         /// 
         /// <remarks>Current state of video source object - running or not.</remarks>
         /// 
-        public bool IsRunning { get; private set;}
+        public bool IsRunning { get; private set; }
+
+        #endregion
+
+        #region Events
 
         /// <summary>
         /// Intel RealSense depth action event handler.
@@ -198,6 +204,10 @@ namespace UMapx.Video.RealSense
         /// 
         public event PlayingFinishedEventHandler PlayingFinished;
 
+        #endregion
+
+        #region Methods
+
         /// <summary>
         /// Start video source.
         /// </summary>
@@ -210,80 +220,82 @@ namespace UMapx.Video.RealSense
         {
             try
             {
-                using var config = new Config();
-                var sensors = _device.Sensors;
-
-                // depth sensor
-                using var depthSensor = sensors[0];
-                var depthProfiles = depthSensor.StreamProfiles
-                                    .Where(p => p.Stream == Stream.Depth)
-                                    .Where(p => p.Format == Format.Z16)
-                                    .OrderBy(p => p.Framerate)
-                                    .Select(p => p.As<VideoStreamProfile>()).ToArray();
-
-                using var depthProfile = depthProfiles.First();
-
-                if (_depthResolution is object)
+                if (!IsRunning)
                 {
-                    config.EnableStream(Stream.Depth, _depthResolution.FrameSize.Width, _depthResolution.FrameSize.Height, depthProfile.Format, _depthResolution.AverageFrameRate);
-                }
-                else
-                {
-                    config.EnableStream(Stream.Depth, depthProfile.Width, depthProfile.Height, depthProfile.Format, depthProfile.Framerate);
-                }
+                    var sensors = _device.Sensors;
 
-                // rgb sensor
-                using var colorSensor = sensors[1];
-                var colorProfiles = colorSensor.StreamProfiles
-                                    .Where(p => p.Stream == Stream.Color)
-                                    .Where(p => p.Format == Format.Rgb8)
-                                    .OrderBy(p => p.Framerate)
-                                    .Select(p => p.As<VideoStreamProfile>()).ToArray();
+                    // depth sensor
+                    using var depthSensor = sensors[0];
+                    var depthProfiles = depthSensor.StreamProfiles
+                                        .Where(p => p.Stream == Stream.Depth)
+                                        .Where(p => p.Format == Format.Z16)
+                                        .OrderBy(p => p.Framerate)
+                                        .Select(p => p.As<VideoStreamProfile>()).ToArray();
 
-                using var colorProfile = colorProfiles.First();
+                    using var depthProfile = depthProfiles.First();
 
-                if (_videoResolution is object)
-                {
-                    config.EnableStream(Stream.Color, _videoResolution.FrameSize.Width, _videoResolution.FrameSize.Height, colorProfile.Format, _videoResolution.AverageFrameRate);
-                }
-                else
-                {
-                    config.EnableStream(Stream.Color, colorProfile.Width, colorProfile.Height, colorProfile.Format, colorProfile.Framerate);
-                }
-
-                // options
-                _tokenSource = new CancellationTokenSource();
-                _framesReceived = 0;
-                _bytesReceived = 0;
-
-                using var pp = _pipeline.Start(config);
-                IsRunning = true;
-
-                Task.Factory.StartNew(() =>
-                {
-                    while (!_tokenSource.Token.IsCancellationRequested)
+                    if (_depthResolution is object)
                     {
-                        using (var frameset = _pipeline.WaitForFrames())
-                        {
-                            using var colorizer = new Colorizer();
-                            using var align = new Align(Stream.Color);
-
-                            using var aligned = align.Process(frameset);
-                            using var alignedframeset = aligned.As<FrameSet>();
-
-                            using var colorFrame = alignedframeset.ColorFrame;
-                            using var depthFrame = alignedframeset.DepthFrame;
-
-                            _colorBitmap?.Dispose();
-
-                            _colorBitmap = colorFrame.ToBitmap();
-                            _depthBitmap = depthFrame.ToArray();
-
-                            OnNewFrame(_colorBitmap);
-                            OnNewDepth(_depthBitmap);
-                        }
+                        _config.EnableStream(Stream.Depth, _depthResolution.FrameSize.Width, _depthResolution.FrameSize.Height, depthProfile.Format, _depthResolution.AverageFrameRate);
                     }
-                }, _tokenSource.Token);
+                    else
+                    {
+                        _config.EnableStream(Stream.Depth, depthProfile.Width, depthProfile.Height, depthProfile.Format, depthProfile.Framerate);
+                    }
+
+                    // rgb sensor
+                    using var colorSensor = sensors[1];
+                    var colorProfiles = colorSensor.StreamProfiles
+                                        .Where(p => p.Stream == Stream.Color)
+                                        .Where(p => p.Format == Format.Rgb8)
+                                        .OrderBy(p => p.Framerate)
+                                        .Select(p => p.As<VideoStreamProfile>()).ToArray();
+
+                    using var colorProfile = colorProfiles.First();
+
+                    if (_videoResolution is object)
+                    {
+                        _config.EnableStream(Stream.Color, _videoResolution.FrameSize.Width, _videoResolution.FrameSize.Height, colorProfile.Format, _videoResolution.AverageFrameRate);
+                    }
+                    else
+                    {
+                        _config.EnableStream(Stream.Color, colorProfile.Width, colorProfile.Height, colorProfile.Format, colorProfile.Framerate);
+                    }
+
+                    // options
+                    _tokenSource = new CancellationTokenSource();
+                    _framesReceived = 0;
+                    _bytesReceived = 0;
+                    IsRunning = true;
+
+                    using var pp = _pipeline.Start(_config);
+
+                    Task.Factory.StartNew(() =>
+                    {
+                        while (!_tokenSource.Token.IsCancellationRequested)
+                        {
+                            using (var frameset = _pipeline.WaitForFrames())
+                            {
+                                using var colorizer = new Colorizer();
+                                using var align = new Align(Stream.Color);
+
+                                using var aligned = align.Process(frameset);
+                                using var alignedframeset = aligned.As<FrameSet>();
+
+                                using var colorFrame = alignedframeset.ColorFrame;
+                                using var depthFrame = alignedframeset.DepthFrame;
+
+                                _colorBitmap?.Dispose();
+
+                                _colorBitmap = colorFrame.ToBitmap();
+                                _depthBitmap = depthFrame.ToArray();
+
+                                OnNewFrame(_colorBitmap);
+                                OnNewDepth(_depthBitmap);
+                            }
+                        }
+                    }, _tokenSource.Token);
+                }
             }
             catch (Exception ex)
             {
@@ -297,20 +309,12 @@ namespace UMapx.Video.RealSense
         /// Stop video source.
         /// </summary>
         /// 
-        /// <remarks><para>Stops video source aborting its thread.</para>
+        /// <remarks>Not implemented</remarks>
         /// 
-        /// <para><note>Since the method aborts background thread, its usage is highly not preferred
-        /// and should be done only if there are no other options. The correct way of stopping camera
-        /// is <see cref="SignalToStop">signaling it stop</see> and then
-        /// <see cref="WaitForStop">waiting</see> for background thread's completion.</note></para>
-        /// </remarks>
-        /// 
+        [Obsolete]
         public void Stop()
         {
-            _tokenSource?.Cancel();
-            _pipeline?.Stop();
-            PlayingFinished?.Invoke(this, ReasonToFinishPlaying.StoppedByUser);
-            IsRunning = false;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -322,16 +326,19 @@ namespace UMapx.Video.RealSense
         /// 
         public void SignalToStop()
         {
-            Stop();
+            _tokenSource?.Cancel();
+            _pipeline?.Stop();
+            _config?.DisableAllStreams();
+            PlayingFinished?.Invoke(this, ReasonToFinishPlaying.StoppedByUser);
+            IsRunning = false;
         }
 
         /// <summary>
         /// Wait for video source has stopped.
         /// </summary>
         /// 
-        /// <remarks>Waits for source stopping after it was signalled to stop using
-        /// <see cref="SignalToStop"/> method.</remarks>
-        /// 
+        /// <remarks>Not implemented</remarks>
+        [Obsolete]
         public void WaitForStop()
         {
             throw new NotImplementedException();
@@ -372,6 +379,7 @@ namespace UMapx.Video.RealSense
         {
             _device?.Dispose();
             _pipeline?.Dispose();
+            _config?.Dispose();
             _tokenSource?.Dispose();
             _colorBitmap?.Dispose();
         }
