@@ -9,8 +9,8 @@ using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
-using UMapx.Core;
 using UMapx.Imaging;
+using UMapx.Video;
 using UMapx.Video.RealSense;
 
 namespace RealSense.FaceID
@@ -21,8 +21,7 @@ namespace RealSense.FaceID
     public partial class MainWindow : Window
     {
         #region Fields
-        private readonly Grayscale _grayscale = Grayscale.BT709;
-        private readonly IVideoSensorSource _realSenseVideoSource;
+        private readonly IVideoDepthSource _realSenseVideoSource;
         private readonly FaceDetectorLight _faceDetectorLight = new FaceDetectorLight();
         private readonly Painter _painter = new Painter();
         private static object _locker = new object();
@@ -41,7 +40,8 @@ namespace RealSense.FaceID
 
             var config = File.ReadAllText("Configurations/HighResHighAccuracyPreset.json");
             _realSenseVideoSource = new RealSenseVideoSource();
-            _realSenseVideoSource.NewSensorsFrames += _realSenseVideoSource_NewSensorsFrames;
+            _realSenseVideoSource.NewFrame += _realSenseVideoSource_NewFrame;
+            _realSenseVideoSource.NewDepth += _realSenseVideoSource_NewDepth;
             _realSenseVideoSource.Start();
         }
 
@@ -139,18 +139,13 @@ namespace RealSense.FaceID
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="eventArgs"></param>
-        private void _realSenseVideoSource_NewSensorsFrames(object sender, NewSensorsEventArgs eventArgs)
+        private void _realSenseVideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
         {
-            var tempColor = (Bitmap)eventArgs.Frame.Clone();
-            var tempDepth = (ushort[,])eventArgs.Depth.Clone();
-
-            ColorBitmap = tempColor;
-            DepthBitmap = tempDepth;
-
+            ColorBitmap = (Bitmap)eventArgs.Frame.Clone();
             InvokeDrawing();
 
             // do job
-            if (_procTask == null)
+            if (_procTask == null && DepthBitmap is object)
             {
                 // main process
                 _procTask = new Thread(() => ProcessFrame(ColorBitmap, DepthBitmap))
@@ -160,6 +155,11 @@ namespace RealSense.FaceID
                 };
                 _procTask.Start();
             }
+        }
+
+        private void _realSenseVideoSource_NewDepth(object sender, NewDepthEventArgs eventArgs)
+        {
+            DepthBitmap = (ushort[,])eventArgs.Depth.Clone();
         }
 
         /// <summary>
@@ -210,22 +210,24 @@ namespace RealSense.FaceID
 
                 // depth drawing
                 var depth = DepthBitmap;
-                var depthBitmap = depth.ToBitmap();
 
-                var cropped = depth.Crop(_rectangle).Equalize();
-                var croppedBitmap = cropped.FromGrayscale();
-
-                BitmapTransform.Merge(depthBitmap, croppedBitmap, _rectangle);
-
-                var printDepth = depthBitmap;
-
-                if (printDepth is object)
+                if (depth is object)
                 {
-                    lock (_locker) _painter.Draw(printDepth, paintData);
+                    var depthBitmap = depth.Equalize().ToBitmap();
+                    //var cropped = depth.Crop(_rectangle).Equalize().ToBitmap();
 
-                    var bitmapDepth = ToBitmapImage(printDepth);
-                    bitmapDepth.Freeze();
-                    Dispatcher.BeginInvoke(new ThreadStart(delegate { imgDepth.Source = bitmapDepth; }));
+                    //BitmapTransform.Merge(depthBitmap, cropped, _rectangle);
+
+                    var printDepth = depthBitmap;
+
+                    if (printDepth is object)
+                    {
+                        lock (_locker) _painter.Draw(printDepth, paintData);
+
+                        var bitmapDepth = ToBitmapImage(printDepth);
+                        bitmapDepth.Freeze();
+                        Dispatcher.BeginInvoke(new ThreadStart(delegate { imgDepth.Source = bitmapDepth; }));
+                    }
                 }
             }
             catch { }
@@ -233,7 +235,7 @@ namespace RealSense.FaceID
 
         #endregion
 
-        #region Helper
+        #region Helpers
 
         /// <summary>
         /// Converts a <see cref="Bitmap"/> to <see cref="BitmapImage"/> 
@@ -244,9 +246,9 @@ namespace RealSense.FaceID
         {
             var bi = new BitmapImage();
             bi.BeginInit();
-            var ms = new System.IO.MemoryStream();
+            var ms = new MemoryStream();
             bitmap.Save(ms, ImageFormat.Bmp);
-            ms.Seek(0, System.IO.SeekOrigin.Begin);
+            ms.Seek(0, SeekOrigin.Begin);
             bi.StreamSource = ms;
             bi.EndInit();
             return bi;

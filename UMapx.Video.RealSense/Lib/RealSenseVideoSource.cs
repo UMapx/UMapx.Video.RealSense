@@ -4,49 +4,58 @@ using System.Drawing;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using UMapx.Imaging;
 using UMapx.Video.DirectShow;
-using static UMapx.Video.RealSense.SensorEvents;
+using static UMapx.Video.RealSense.DepthEvent;
 
 namespace UMapx.Video.RealSense
 {
-    public class RealSenseVideoSource : IVideoSensorSource, IDisposable
+    /// <summary>
+    /// Video source for Intel RealSense Depth camera.
+    /// </summary>
+    public class RealSenseVideoSource : IVideoDepthSource, IVideoSource, IDisposable
     {
         #region Fields
-        
+
         private readonly Device _device;
         private readonly Pipeline _pipeline;
-        private VideoCapabilities[] _videoResolution;
+        private VideoCapabilities _videoResolution;
+        private VideoCapabilities _depthResolution;
         private CancellationTokenSource _tokenSource;
         private Bitmap _colorBitmap;
-        private ushort[,] _colorizedDepthBitmap;
+        private ushort[,] _depthBitmap;
         private int _framesReceived;
         private long _bytesReceived;
 
         #endregion
 
-        #region Constructors
+        #region Constructor
 
         /// <summary>
-        /// Create video source with default <see cref="Stream.Color"/> and <see cref="Stream.Depth"/>
+        /// Creates video source for Intel RealSense Depth camera.
         /// </summary>
-        public RealSenseVideoSource(string json = null)
+        /// <param name="json">Json configuration</param>
+        public RealSenseVideoSource()
         {
             using var ctx = new Context();
             using var devices = ctx.QueryDevices();
             _device = devices.FirstOrDefault();
-            _pipeline = new Pipeline();
 
-            Source = _device.Info[CameraInfo.Name];
-            SerialNumber = _device.Info[CameraInfo.SerialNumber];
-            FirmwareVersion = _device.Info[CameraInfo.FirmwareVersion];
-
-            if (json is object)
+            if (_device is null)
             {
-                var adv = AdvancedDevice.FromDevice(_device);
-                adv.JsonConfiguration = json;
+                throw new NullReferenceException("Intel RealSense Depth camera not found.");
+            }
+            else
+            {
+                Source = _device.Info[CameraInfo.Name];
+                SerialNumber = _device.Info[CameraInfo.SerialNumber];
+                FirmwareVersion = _device.Info[CameraInfo.FirmwareVersion];
+                _pipeline = new Pipeline();
             }
         }
+
+        #endregion
+
+        #region Properties
 
         /// <summary>
         /// Video resolution to set.
@@ -61,7 +70,7 @@ namespace UMapx.Video.RealSense
         /// resolution is used.</para>
         /// </remarks>
         /// 
-        public VideoCapabilities[] VideoResolution
+        public VideoCapabilities VideoResolution
         {
             get
             { 
@@ -69,10 +78,32 @@ namespace UMapx.Video.RealSense
             }
             set
             {
-                if (value.Length != 2)
-                    throw new ArgumentException("Video resolution must be configured for 2 sensors.");
-
                 _videoResolution = value; 
+            }
+        }
+
+        /// <summary>
+        /// Depth resolution to set.
+        /// </summary>
+        /// 
+        /// <remarks><para>The property allows to set one of the depth resolutions supported by the camera.
+        /// Use <see cref="VideoCapabilities"/> property to get the list of supported depth resolutions.</para>
+        /// 
+        /// <para><note>The property must be set before camera is started to make any effect.</note></para>
+        /// 
+        /// <para>Default value of the property is set to <see langword="null"/>, which means default depth
+        /// resolution is used.</para>
+        /// </remarks>
+        /// 
+        public VideoCapabilities DepthResolution
+        {
+            get
+            {
+                return _depthResolution;
+            }
+            set
+            {
+                _depthResolution = value;
             }
         }
 
@@ -82,12 +113,12 @@ namespace UMapx.Video.RealSense
         public string Source { get; private set; }
 
         /// <summary>
-        /// Serial number of Intel RealSense camera.
+        /// Serial number of Intel RealSense Depth camera.
         /// </summary>
         public string SerialNumber { get; private set; }
 
         /// <summary>
-        /// Firmware version of Intel RealSense camera.
+        /// Firmware version of Intel RealSense Depth camera.
         /// </summary>
         public string FirmwareVersion { get; private set; }
 
@@ -140,23 +171,31 @@ namespace UMapx.Video.RealSense
         public bool IsRunning { get; private set;}
 
         /// <summary>
-        /// Intel RealSense frames action event handler.
+        /// Intel RealSense depth action event handler.
         /// </summary>
-        public event NewSensorsEventHandler NewSensorsFrames;
+        public event NewDepthEventHandler NewDepth;
 
         /// <summary>
-        /// 
+        /// Intel RealSense frame action event handler.
         /// </summary>
         public event NewFrameEventHandler NewFrame;
 
         /// <summary>
-        /// 
+        /// Video source error event.
         /// </summary>
+        /// 
+        /// <remarks>This event is used to notify clients about any type of errors occurred in
+        /// video source object, for example internal exceptions.</remarks>
+        /// 
         public event VideoSourceErrorEventHandler VideoSourceError;
 
         /// <summary>
-        /// 
+        /// Video playing finished event.
         /// </summary>
+        /// 
+        /// <remarks><para>This event is used to notify clients that the video playing has finished.</para>
+        /// </remarks>
+        /// 
         public event PlayingFinishedEventHandler PlayingFinished;
 
         /// <summary>
@@ -183,11 +222,10 @@ namespace UMapx.Video.RealSense
                                     .Select(p => p.As<VideoStreamProfile>()).ToArray();
 
                 using var depthProfile = depthProfiles.First();
-                var depthResolution = _videoResolution?[0];
 
-                if (depthResolution is object)
+                if (_depthResolution is object)
                 {
-                    config.EnableStream(Stream.Depth, depthResolution.FrameSize.Width, depthResolution.FrameSize.Height, depthProfile.Format, depthResolution.AverageFrameRate);
+                    config.EnableStream(Stream.Depth, _depthResolution.FrameSize.Width, _depthResolution.FrameSize.Height, depthProfile.Format, _depthResolution.AverageFrameRate);
                 }
                 else
                 {
@@ -203,11 +241,10 @@ namespace UMapx.Video.RealSense
                                     .Select(p => p.As<VideoStreamProfile>()).ToArray();
 
                 using var colorProfile = colorProfiles.First();
-                var colorResolution = _videoResolution?[1];
 
-                if (colorResolution is object)
+                if (_videoResolution is object)
                 {
-                    config.EnableStream(Stream.Color, colorResolution.FrameSize.Width, colorResolution.FrameSize.Height, colorProfile.Format, colorResolution.AverageFrameRate);
+                    config.EnableStream(Stream.Color, _videoResolution.FrameSize.Width, _videoResolution.FrameSize.Height, colorProfile.Format, _videoResolution.AverageFrameRate);
                 }
                 else
                 {
@@ -237,15 +274,13 @@ namespace UMapx.Video.RealSense
                             using var colorFrame = alignedframeset.ColorFrame;
                             using var depthFrame = alignedframeset.DepthFrame;
 
-                            //using var colorizedDepth = colorizer.Process<VideoFrame>(depthFrame);
-
-                            // TODO??
                             _colorBitmap?.Dispose();
 
                             _colorBitmap = colorFrame.ToBitmap();
-                            _colorizedDepthBitmap = depthFrame.ToArray();
+                            _depthBitmap = depthFrame.ToArray();
 
-                            OnNewFrames(_colorBitmap, _colorizedDepthBitmap);
+                            OnNewFrame(_colorBitmap);
+                            OnNewDepth(_depthBitmap);
                         }
                     }
                 }, _tokenSource.Token);
@@ -304,19 +339,26 @@ namespace UMapx.Video.RealSense
 
         #endregion
 
-        #region Protected voids
+        #region Private voids
 
         /// <summary>
-        /// Called when video source gets new frame
+        /// Called when video source gets new frame.
         /// </summary>
-        /// <param name="colorBitmap"></param>
-        protected void OnNewFrames(Bitmap frame, ushort[,] depth)
+        /// <param name="frame">Frame</param>
+        private void OnNewFrame(Bitmap frame)
         {
             _framesReceived++;
             _bytesReceived += frame.Width * frame.Height * (Image.GetPixelFormatSize(frame.PixelFormat) >> 3);
-
-            NewSensorsFrames?.Invoke(this, new NewSensorsEventArgs(frame, depth));
             NewFrame?.Invoke(this, new NewFrameEventArgs(frame));
+        }
+
+        /// <summary>
+        /// Called when video source gets new depth.
+        /// </summary>
+        /// <param name="depth">Depth</param>
+        private void OnNewDepth(ushort[,] depth)
+        {
+            NewDepth?.Invoke(this, new NewDepthEventArgs(depth));
         }
 
         #endregion
@@ -324,7 +366,7 @@ namespace UMapx.Video.RealSense
         #region IDisposable
 
         /// <summary>
-        /// Recycles objects necessary for disposal
+        /// Disposes Intel RealSense Depth camera source.
         /// </summary>
         public void Dispose()
         {
