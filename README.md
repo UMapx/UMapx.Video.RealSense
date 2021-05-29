@@ -12,7 +12,7 @@ C# interface
 ```c#
 using UMapx.Video.RealSense;
 ```
-To get started with UMapx.Video.RealSense try simple [example](example).
+To get started with **UMapx.Video.RealSense** try simple [example](example).
 
 # License
 MIT
