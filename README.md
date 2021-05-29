@@ -6,7 +6,7 @@
 <p align="center"><img width="80%" src="docs/camera.jpg"/></p>  
 
 # Installation
-Install Intel RealSense Viewer from [realses](https://github.com/IntelRealSense/librealsense/releases) and upload one of the json available [configurations](https://github.com/IntelRealSense/librealsense/wiki/D400-Series-Visual-Presets) in application. Install **UMapx.Video.RealSense** to your project using [NuGet](https://www.nuget.org/packages/UMapx.Video.RealSense/) package manager.
+Install Intel RealSense Viewer from [realses](https://github.com/IntelRealSense/librealsense/releases) and upload one of the json available [presets](https://github.com/IntelRealSense/librealsense/wiki/D400-Series-Visual-Presets) in application. Install **UMapx.Video.RealSense** to your project using [NuGet](https://www.nuget.org/packages/UMapx.Video.RealSense/) package manager.
 
 C# interface
 ```c#
