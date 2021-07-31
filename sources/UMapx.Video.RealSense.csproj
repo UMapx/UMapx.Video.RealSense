@@ -1,10 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Description>UMapx sub-library for interacting with Intel RealSense Depth cameras.</Description>
-    <AssemblyVersion>1.0.0.1</AssemblyVersion>
-    <Version>1.0.0.1</Version>
+    <AssemblyVersion>5.2.2.1</AssemblyVersion>
+    <Version>5.2.2.1</Version>
     <PackageProjectUrl>https://github.com/asiryan/UMapx</PackageProjectUrl>
     <RepositoryType>Open-source</RepositoryType>
     <PackageTags>image video signal processing stereo depth intel realsense camera umapx</PackageTags>
@@ -20,14 +20,15 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	  <LangVersion>8.0</LangVersion>
-	  <Optimize>false</Optimize>
+	  <Optimize>true</Optimize>
 	  <DefineConstants>DEBUG;TRACE</DefineConstants>
 	  <DocumentationFile>UMapx.Video.RealSense.xml</DocumentationFile>
+	  <WarningLevel>4</WarningLevel>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Intel.RealSenseWithNativeDll" Version="2.36.0" />
-    <PackageReference Include="UMapx" Version="5.1.2.2" />
+    <PackageReference Include="librealsense.x64" Version="2.45.1" />
+    <PackageReference Include="UMapx" Version="5.2.2.1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -42,6 +43,12 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Update="C:\Users\Tatiana\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Update="C:\Users\Tatiana\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.lib">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Update="C:\Users\Valery\.nuget\packages\intel.realsensewithnativedll\2.36.0\build\\realsense2.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>

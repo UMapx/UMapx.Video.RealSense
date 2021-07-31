@@ -2,24 +2,22 @@
 using System.Drawing.Imaging;
 using System.IO;
 using System.Threading;
-using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using UMapx.Imaging;
-using UMapx.Video;
 using UMapx.Video.RealSense;
 
-namespace RealSense.Example
+namespace UMapx.Video.RealSense.Example
 {
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
-    public partial class MainWindow : Window
+    public partial class MainWindow : System.Windows.Window
     {
         #region Fields
 
         private readonly IVideoDepthSource _realSenseVideoSource;
-        private static object _locker = new object();
+        private static readonly object _locker = new object();
         private Bitmap _frame;
         private Bitmap _depth;
 
@@ -27,14 +25,28 @@ namespace RealSense.Example
 
         #region Launcher
 
+        /// <summary>
+        /// Constructor.
+        /// </summary>
         public MainWindow()
         {
             InitializeComponent();
+            Closing += MainWindow_Closing;
 
             _realSenseVideoSource = new RealSenseVideoSource();
-            _realSenseVideoSource.NewFrame += _realSenseVideoSource_NewFrame;
-            _realSenseVideoSource.NewDepth += _realSenseVideoSource_NewDepth;
+            _realSenseVideoSource.NewFrame += OnNewFrame;
+            _realSenseVideoSource.NewDepth += OnNewDepth;
             _realSenseVideoSource.Start();
+        }
+
+        /// <summary>
+        /// Windows closing.
+        /// </summary>
+        /// <param name="sender">Sender</param>
+        /// <param name="e">Event args</param>
+        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            _realSenseVideoSource.SignalToStop();
         }
 
         #endregion
@@ -118,7 +130,7 @@ namespace RealSense.Example
         /// </summary>
         /// <param name="sender">sender</param>
         /// <param name="eventArgs">event arguments</param>
-        private void _realSenseVideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
+        private void OnNewFrame(object sender, NewFrameEventArgs eventArgs)
         {
             Frame = (Bitmap)eventArgs.Frame.Clone();
             InvokeDrawing();
@@ -129,7 +141,7 @@ namespace RealSense.Example
         /// </summary>
         /// <param name="sender">sender</param>
         /// <param name="eventArgs">event arguments</param>
-        private void _realSenseVideoSource_NewDepth(object sender, NewDepthEventArgs eventArgs)
+        private void OnNewDepth(object sender, NewDepthEventArgs eventArgs)
         {
             Depth = eventArgs.Depth.Equalize().ToBitmap();
             InvokeDrawing();
@@ -188,6 +200,5 @@ namespace RealSense.Example
         }
 
         #endregion
-
     }
 }

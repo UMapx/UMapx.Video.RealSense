@@ -4,46 +4,6 @@
         <name>UMapx.Video.RealSense</name>
     </assembly>
     <members>
-        <member name="T:UMapx.Video.RealSense.DepthEvent">
-            <summary>
-            Sensor event handler class
-            </summary>
-        </member>
-        <member name="T:UMapx.Video.RealSense.DepthEvent.NewDepthEventHandler">
-            <summary>
-            New depth event handler.
-            </summary>
-            <param name="sender">Sender</param>
-            <param name="eventArgs">Event arguments</param>
-        </member>
-        <member name="T:UMapx.Video.RealSense.IVideoDepthSource">
-            <summary>
-            Extension interface for handling Intel RealSense depth events.
-            </summary>
-        </member>
-        <member name="E:UMapx.Video.RealSense.IVideoDepthSource.NewDepth">
-            <summary>
-            Handler of received frames
-            </summary>
-        </member>
-        <member name="T:UMapx.Video.RealSense.NewDepthEventArgs">
-            <summary>
-            Arguments for new depth event from video source.
-            </summary>
-        </member>
-        <member name="M:UMapx.Video.RealSense.NewDepthEventArgs.#ctor(System.UInt16[0:,0:])">
-            <summary>
-            Initializes a new instance of the <see cref="T:UMapx.Video.RealSense.NewDepthEventArgs"/> class.
-            </summary>
-            
-            <param name="depth">New depth.</param>
-            
-        </member>
-        <member name="P:UMapx.Video.RealSense.NewDepthEventArgs.Depth">
-            <summary>
-            Gets the depth.
-            </summary>
-        </member>
         <member name="T:UMapx.Video.RealSense.RealSenseConverter">
             <summary>
             Internal class to convert RealSense frames into bitmaps.
@@ -91,7 +51,7 @@
             </summary>
             
             <remarks><para>The property allows to set one of the video resolutions supported by the camera.
-            Use <see cref="T:UMapx.Video.DirectShow.VideoCapabilities"/> property to get the list of supported video resolutions.</para>
+            Use <see cref="T:UMapx.Video.VideoCapabilities"/> property to get the list of supported video resolutions.</para>
             
             <para><note>The property must be set before camera is started to make any effect.</note></para>
             
@@ -106,7 +66,7 @@
             </summary>
             
             <remarks><para>The property allows to set one of the depth resolutions supported by the camera.
-            Use <see cref="T:UMapx.Video.DirectShow.VideoCapabilities"/> property to get the list of supported depth resolutions.</para>
+            Use <see cref="T:UMapx.Video.VideoCapabilities"/> property to get the list of supported depth resolutions.</para>
             
             <para><note>The property must be set before camera is started to make any effect.</note></para>
             
@@ -196,14 +156,6 @@
             help of <see cref="E:UMapx.Video.RealSense.RealSenseVideoSource.NewFrame"/> event.</remarks>
             
         </member>
-        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Stop">
-            <summary>
-            Stop video source.
-            </summary>
-            
-            <remarks>Not implemented</remarks>
-            
-        </member>
         <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.SignalToStop">
             <summary>
             Signal video source to stop its work.
@@ -211,6 +163,14 @@
             
             <remarks>Signals video source to stop its background thread, stop to
             provide new frames and free resources.</remarks>
+            
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Stop">
+            <summary>
+            Stop video source.
+            </summary>
+            
+            <remarks>Not implemented</remarks>
             
         </member>
         <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.WaitForStop">
@@ -235,6 +195,16 @@
         <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Dispose">
             <summary>
             Disposes Intel RealSense Depth camera source.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.DepthResolutions">
+            <summary>
+            Returns video capabilities array of depth stream.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.VideoResolutions">
+            <summary>
+            Returns video capabilities array of color stream.
             </summary>
         </member>
     </members>
