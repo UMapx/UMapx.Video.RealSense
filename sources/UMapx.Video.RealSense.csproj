@@ -49,9 +49,6 @@
     <Content Update="C:\Users\Tatiana\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.lib">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <Content Update="C:\Users\Valery\.nuget\packages\intel.realsensewithnativedll\2.36.0\build\\realsense2.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
 </Project>

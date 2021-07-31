@@ -386,6 +386,7 @@ namespace UMapx.Video.RealSense
             _pipeline?.Dispose();
             _config?.Dispose();
             _tokenSource?.Dispose();
+            GC.SuppressFinalize(this);
         }
 
         #endregion
