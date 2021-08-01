@@ -47,7 +47,7 @@ namespace UMapx.Video.RealSense
         /// <returns>Bitmap</returns>
         public static Bitmap ToBitmap(this DepthFrame depth)
         {
-            return DepthTransform.ToBitmap(depth.ToArray());
+            return DepthFormat.ToBitmap(depth.ToArray());
         }
 
         /// <summary>
