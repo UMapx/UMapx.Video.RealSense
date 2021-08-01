@@ -15,7 +15,7 @@ namespace UMapx.Video.RealSense
     /// https://www.intelrealsense.com/stereo-depth/
     /// </remarks>
     /// </summary>
-    public class RealSenseVideoSource : IVideoDepthSource, IVideoSource, IDisposable
+    public class RealSenseVideoSource : IVideoDepthSource, IDisposable
     {
         #region Fields
 
@@ -213,9 +213,9 @@ namespace UMapx.Video.RealSense
         /// 
         public void Start()
         {
-            try
+            if (!IsRunning)
             {
-                if (!IsRunning)
+                try
                 {
                     // depth sensor 
                     var depthProfile = DepthResolutions.FirstOrDefault();
@@ -292,12 +292,12 @@ namespace UMapx.Video.RealSense
                         }
                     }, _tokenSource.Token);
                 }
-            }
-            catch (Exception ex)
-            {
-                VideoSourceError?.Invoke(this, new VideoSourceErrorEventArgs(ex.Message));
-                IsRunning = false;
-                throw;
+                catch (Exception ex)
+                {
+                    VideoSourceError?.Invoke(this, new VideoSourceErrorEventArgs(ex.Message));
+                    IsRunning = false;
+                    throw;
+                }
             }
         }
 
@@ -353,12 +353,9 @@ namespace UMapx.Video.RealSense
         /// <param name="frame">Frame</param>
         private void OnNewFrame(Bitmap frame)
         {
-            if (frame is object)
-            {
-                _framesReceived++;
-                _bytesReceived += frame.Width * frame.Height * (Image.GetPixelFormatSize(frame.PixelFormat) >> 3);
-                NewFrame?.Invoke(this, new NewFrameEventArgs(frame));
-            }
+            _framesReceived++;
+            _bytesReceived += frame.Width * frame.Height * (Image.GetPixelFormatSize(frame.PixelFormat) >> 3);
+            NewFrame?.Invoke(this, new NewFrameEventArgs(frame));
         }
 
         /// <summary>
@@ -367,10 +364,7 @@ namespace UMapx.Video.RealSense
         /// <param name="depth">Depth</param>
         private void OnNewDepth(ushort[,] depth)
         {
-            if (depth is object)
-            {
-                NewDepth?.Invoke(this, new NewDepthEventArgs(depth));
-            }
+            NewDepth?.Invoke(this, new NewDepthEventArgs(depth));
         }
 
         #endregion

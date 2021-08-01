@@ -10,14 +10,17 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="UMapx.Video.RealSense" Version="5.2.2.1" />
-  </ItemGroup>
+	<ItemGroup>
+		<Content Include="C:\Users\Tatiana\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.dll">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+		<Content Include="C:\Users\Tatiana\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.lib">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
 
-  <ItemGroup>
-    <Content Update="C:\Users\Valery\.nuget\packages\umapx.video.realsense\1.0.0.1\contentFiles\any\netcoreapp3.1\realsense2.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
+	<ItemGroup>
+	  <ProjectReference Include="..\sources\UMapx.Video.RealSense.csproj" />
+	</ItemGroup>
 
 </Project>
