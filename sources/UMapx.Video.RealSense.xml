@@ -1,0 +1,211 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>UMapx.Video.RealSense</name>
+    </assembly>
+    <members>
+        <member name="T:UMapx.Video.RealSense.RealSenseConverter">
+            <summary>
+            Internal class to convert RealSense frames into bitmaps.
+            </summary>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseConverter.ToBitmap(Intel.RealSense.VideoFrame)">
+            <summary>
+            Unsafely converts a <see cref="T:Intel.RealSense.VideoFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
+            </summary>
+            <param name="frame">Frame</param>
+            <returns>Bitmap</returns>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseConverter.ToBitmap(Intel.RealSense.DepthFrame)">
+            <summary>
+            Unsafely converts a <see cref="T:Intel.RealSense.DepthFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
+            </summary>
+            <param name="depth">Depth</param>
+            <returns>Bitmap</returns>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseConverter.ToArray(Intel.RealSense.DepthFrame)">
+            <summary>
+            Unsafely converts a <see cref="T:Intel.RealSense.DepthFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
+            </summary>
+            <param name="frame">Frame</param>
+            <returns>Bitmap</returns>
+        </member>
+        <member name="T:UMapx.Video.RealSense.RealSenseVideoSource">
+            <summary>
+            Video source for Intel RealSense Depth camera.
+            <remarks>
+            This video source class captures video data from Intel RealSense Depth camera.
+            More information can be found on the website:
+            https://www.intelrealsense.com/stereo-depth/
+            </remarks>
+            </summary>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.#ctor">
+            <summary>
+            Creates video source for Intel RealSense Depth camera.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.VideoResolution">
+            <summary>
+            Video resolution to set.
+            </summary>
+            
+            <remarks><para>The property allows to set one of the video resolutions supported by the camera.
+            Use <see cref="T:UMapx.Video.VideoCapabilities"/> property to get the list of supported video resolutions.</para>
+            
+            <para><note>The property must be set before camera is started to make any effect.</note></para>
+            
+            <para>Default value of the property is set to <see langword="null"/>, which means default video
+            resolution is used.</para>
+            </remarks>
+            
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.DepthResolution">
+            <summary>
+            Depth resolution to set.
+            </summary>
+            
+            <remarks><para>The property allows to set one of the depth resolutions supported by the camera.
+            Use <see cref="T:UMapx.Video.VideoCapabilities"/> property to get the list of supported depth resolutions.</para>
+            
+            <para><note>The property must be set before camera is started to make any effect.</note></para>
+            
+            <para>Default value of the property is set to <see langword="null"/>, which means default depth
+            resolution is used.</para>
+            </remarks>
+            
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.Source">
+            <summary>
+            Returns camera source.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.SerialNumber">
+            <summary>
+            Serial number of Intel RealSense Depth camera.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.FirmwareVersion">
+            <summary>
+            Firmware version of Intel RealSense Depth camera.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.FramesReceived">
+            <summary>
+            Received frames count.
+            </summary>
+            
+            <remarks>Number of frames the video source provided from the moment of the last
+            access to the property.
+            </remarks>
+            
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.BytesReceived">
+            <summary>
+            Received bytes count.
+            </summary>
+            
+            <remarks>Number of bytes the video source provided from the moment of the last
+            access to the property.
+            </remarks>
+            
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.IsRunning">
+            <summary>
+            State of the video source.
+            </summary>
+            
+            <remarks>Current state of video source object - running or not.</remarks>
+            
+        </member>
+        <member name="E:UMapx.Video.RealSense.RealSenseVideoSource.NewDepth">
+            <summary>
+            Intel RealSense depth action event handler.
+            </summary>
+        </member>
+        <member name="E:UMapx.Video.RealSense.RealSenseVideoSource.NewFrame">
+            <summary>
+            Intel RealSense frame action event handler.
+            </summary>
+        </member>
+        <member name="E:UMapx.Video.RealSense.RealSenseVideoSource.VideoSourceError">
+            <summary>
+            Video source error event.
+            </summary>
+            
+            <remarks>This event is used to notify clients about any type of errors occurred in
+            video source object, for example internal exceptions.</remarks>
+            
+        </member>
+        <member name="E:UMapx.Video.RealSense.RealSenseVideoSource.PlayingFinished">
+            <summary>
+            Video playing finished event.
+            </summary>
+            
+            <remarks><para>This event is used to notify clients that the video playing has finished.</para>
+            </remarks>
+            
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Start">
+            <summary>
+            Start video source.
+            </summary>
+            
+            <remarks>Starts video source and return execution to caller. Video source
+            object creates background thread and notifies about new frames with the
+            help of <see cref="E:UMapx.Video.RealSense.RealSenseVideoSource.NewFrame"/> event.</remarks>
+            
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.SignalToStop">
+            <summary>
+            Signal video source to stop its work.
+            </summary>
+            
+            <remarks>Signals video source to stop its background thread, stop to
+            provide new frames and free resources.</remarks>
+            
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Stop">
+            <summary>
+            Stop video source.
+            </summary>
+            
+            <remarks>Not implemented</remarks>
+            
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.WaitForStop">
+            <summary>
+            Wait for video source has stopped.
+            </summary>
+            
+            <remarks>Not implemented</remarks>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.OnNewFrame(System.Drawing.Bitmap)">
+            <summary>
+            Called when video source gets new frame.
+            </summary>
+            <param name="frame">Frame</param>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.OnNewDepth(System.UInt16[0:,0:])">
+            <summary>
+            Called when video source gets new depth.
+            </summary>
+            <param name="depth">Depth</param>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Dispose">
+            <summary>
+            Disposes Intel RealSense Depth camera source.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.DepthResolutions">
+            <summary>
+            Returns video capabilities array of depth stream.
+            </summary>
+        </member>
+        <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.VideoResolutions">
+            <summary>
+            Returns video capabilities array of color stream.
+            </summary>
+        </member>
+    </members>
+</doc>

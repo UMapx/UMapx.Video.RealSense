@@ -1,0 +1,57 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Description>UMapx sub-library for interacting with Intel RealSense Depth cameras.</Description>
+    <AssemblyVersion>5.2.2.1</AssemblyVersion>
+    <Version>5.2.2.1</Version>
+    <PackageProjectUrl>https://github.com/asiryan/UMapx</PackageProjectUrl>
+    <RepositoryType>Open-source</RepositoryType>
+    <PackageTags>image video signal processing stereo depth intel realsense camera umapx</PackageTags>
+    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+    <PackageIcon>umapxnet.png</PackageIcon>
+    <RepositoryUrl>https://github.com/asiryan/UMapx.Video.RealSense</RepositoryUrl>
+    <Copyright>Valery Asiryan, © 2015-2021</Copyright>
+    <NeutralLanguage>en</NeutralLanguage>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	  <LangVersion>8.0</LangVersion>
+	  <Optimize>false</Optimize>
+	  <DefineConstants>DEBUG;TRACE</DefineConstants>
+	  <DocumentationFile>UMapx.Video.RealSense.xml</DocumentationFile>
+	  <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="librealsense.x64" Version="2.45.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="LICENSE.md">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+    <None Include="umapxnet.png">
+      <Pack>True</Pack>
+      <PackagePath></PackagePath>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="C:\Users\Tatiana\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="C:\Users\Tatiana\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.lib">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\UMapx\sources\UMapx.csproj" />
+  </ItemGroup>
+
+</Project>
