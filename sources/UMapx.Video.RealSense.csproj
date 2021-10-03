@@ -3,8 +3,8 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>UMapx sub-library for interacting with Intel RealSense Depth cameras.</Description>
-    <AssemblyVersion>5.2.2.3</AssemblyVersion>
-    <Version>5.2.2.3</Version>
+    <AssemblyVersion>5.2.2.5</AssemblyVersion>
+    <Version>5.2.2.5</Version>
     <PackageProjectUrl>https://github.com/asiryan/UMapx</PackageProjectUrl>
     <RepositoryType>Open-source</RepositoryType>
     <PackageTags>image video signal processing stereo depth intel realsense camera umapx</PackageTags>

@@ -371,16 +371,35 @@ namespace UMapx.Video.RealSense
 
         #region IDisposable
 
-        /// <summary>
-        /// Disposes Intel RealSense Depth camera source.
-        /// </summary>
+        private bool _disposed;
+
+        /// <inheritdoc/>
         public void Dispose()
         {
-            _device?.Dispose();
-            _pipeline?.Dispose();
-            _config?.Dispose();
-            _tokenSource?.Dispose();
+            Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        /// <inheritdoc/>
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!_disposed)
+            {
+                if (disposing)
+                {
+                    _device?.Dispose();
+                    _pipeline?.Dispose();
+                    _config?.Dispose();
+                    _tokenSource?.Dispose();
+                }
+                _disposed = true;
+            }
+        }
+
+        /// <inheritdoc/>
+        ~RealSenseVideoSource()
+        {
+            Dispose(false);
         }
 
         #endregion

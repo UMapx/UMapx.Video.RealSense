@@ -11,7 +11,7 @@ namespace UMapx.Video.RealSense
     internal static class RealSenseConverter
     {
         /// <summary>
-        /// Unsafely converts a <see cref="VideoFrame"/> to <see cref="Bitmap"/>.
+        /// Converts a <see cref="VideoFrame"/> to <see cref="Bitmap"/>.
         /// </summary>
         /// <param name="frame">Frame</param>
         /// <returns>Bitmap</returns>
@@ -41,7 +41,7 @@ namespace UMapx.Video.RealSense
         }
 
         /// <summary>
-        /// Unsafely converts a <see cref="DepthFrame"/> to <see cref="Bitmap"/>.
+        /// Converts a <see cref="DepthFrame"/> to <see cref="Bitmap"/>.
         /// </summary>
         /// <param name="depth">Depth</param>
         /// <returns>Bitmap</returns>
@@ -51,7 +51,7 @@ namespace UMapx.Video.RealSense
         }
 
         /// <summary>
-        /// Unsafely converts a <see cref="DepthFrame"/> to <see cref="Bitmap"/>.
+        /// Converts a <see cref="DepthFrame"/> to <see cref="Bitmap"/>.
         /// </summary>
         /// <param name="frame">Frame</param>
         /// <returns>Bitmap</returns>

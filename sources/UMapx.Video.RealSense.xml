@@ -11,21 +11,21 @@
         </member>
         <member name="M:UMapx.Video.RealSense.RealSenseConverter.ToBitmap(Intel.RealSense.VideoFrame)">
             <summary>
-            Unsafely converts a <see cref="T:Intel.RealSense.VideoFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
+            Converts a <see cref="T:Intel.RealSense.VideoFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
             </summary>
             <param name="frame">Frame</param>
             <returns>Bitmap</returns>
         </member>
         <member name="M:UMapx.Video.RealSense.RealSenseConverter.ToBitmap(Intel.RealSense.DepthFrame)">
             <summary>
-            Unsafely converts a <see cref="T:Intel.RealSense.DepthFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
+            Converts a <see cref="T:Intel.RealSense.DepthFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
             </summary>
             <param name="depth">Depth</param>
             <returns>Bitmap</returns>
         </member>
         <member name="M:UMapx.Video.RealSense.RealSenseConverter.ToArray(Intel.RealSense.DepthFrame)">
             <summary>
-            Unsafely converts a <see cref="T:Intel.RealSense.DepthFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
+            Converts a <see cref="T:Intel.RealSense.DepthFrame"/> to <see cref="T:System.Drawing.Bitmap"/>.
             </summary>
             <param name="frame">Frame</param>
             <returns>Bitmap</returns>
@@ -193,9 +193,13 @@
             <param name="depth">Depth</param>
         </member>
         <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Dispose">
-            <summary>
-            Disposes Intel RealSense Depth camera source.
-            </summary>
+            <inheritdoc/>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Dispose(System.Boolean)">
+            <inheritdoc/>
+        </member>
+        <member name="M:UMapx.Video.RealSense.RealSenseVideoSource.Finalize">
+            <inheritdoc/>
         </member>
         <member name="P:UMapx.Video.RealSense.RealSenseVideoSource.DepthResolutions">
             <summary>
