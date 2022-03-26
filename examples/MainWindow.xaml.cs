@@ -5,7 +5,6 @@ using System.Threading;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using UMapx.Imaging;
-using UMapx.Video.RealSense;
 
 namespace UMapx.Video.RealSense.Example
 {
@@ -143,7 +142,7 @@ namespace UMapx.Video.RealSense.Example
         /// <param name="eventArgs">event arguments</param>
         private void OnNewDepth(object sender, NewDepthEventArgs eventArgs)
         {
-            Depth = eventArgs.Depth.Equalize().ToBitmap();
+            Depth = eventArgs.Depth.Equalize().FromDepth();
             InvokeDrawing();
         }
 
