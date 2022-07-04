@@ -3,15 +3,16 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <Description>UMapx sub-library for interacting with Intel RealSense Depth cameras.</Description>
-    <AssemblyVersion>5.2.2.5</AssemblyVersion>
-    <Version>5.2.2.5</Version>
+	<Version>5.2.4.5</Version>
+    <AssemblyVersion>5.2.4.5</AssemblyVersion>
+	<FileVersion>5.2.4.5</FileVersion>
     <PackageProjectUrl>https://github.com/asiryan/UMapx</PackageProjectUrl>
     <RepositoryType>Open-source</RepositoryType>
     <PackageTags>image video signal processing stereo depth intel realsense camera umapx</PackageTags>
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageIcon>umapxnet.png</PackageIcon>
     <RepositoryUrl>https://github.com/asiryan/UMapx.Video.RealSense</RepositoryUrl>
-    <Copyright>Valery Asiryan, © 2015-2021</Copyright>
+    <Copyright>Valery Asiryan, © 2015-2022</Copyright>
     <NeutralLanguage>en</NeutralLanguage>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
@@ -39,7 +40,7 @@
 
   <ItemGroup>
     <PackageReference Include="librealsense.x64" Version="2.45.1" />
-    <PackageReference Include="UMapx" Version="5.2.2.5" />
+    <PackageReference Include="UMapx" Version="5.2.4.5" />
   </ItemGroup>
 
   <ItemGroup>
