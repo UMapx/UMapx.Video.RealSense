@@ -12,7 +12,7 @@
     <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
     <PackageIcon>umapxnet.png</PackageIcon>
     <RepositoryUrl>https://github.com/asiryan/UMapx.Video.RealSense</RepositoryUrl>
-    <Copyright>Valery Asiryan, © 2015-2022</Copyright>
+    <Copyright>Valery Asiryan, © 2015-2023</Copyright>
     <NeutralLanguage>en</NeutralLanguage>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
