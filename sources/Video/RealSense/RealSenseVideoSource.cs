@@ -15,7 +15,7 @@ namespace UMapx.Video.RealSense
     /// https://www.intelrealsense.com/stereo-depth/
     /// </remarks>
     /// </summary>
-    public class RealSenseVideoSource : IVideoDepthSource, IDisposable
+    public class RealSenseVideoSource : IVideoDepthSource
     {
         #region Fields
 
