@@ -43,7 +43,7 @@ namespace UMapx.Video.RealSense
 
             if (_device is null)
             {
-                throw new NullReferenceException("Intel RealSense Depth camera not found.");
+                throw new NullReferenceException("Intel RealSense Depth camera not found");
             }
             else
             {
