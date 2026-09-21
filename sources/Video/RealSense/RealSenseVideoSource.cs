@@ -1,9 +1,7 @@
-﻿using Intel.RealSense;
-using System;
+﻿using System;
+using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace UMapx.Video.RealSense
 {
@@ -19,12 +17,11 @@ namespace UMapx.Video.RealSense
     {
         #region Fields
 
-        private readonly Device _device;
-        private readonly Pipeline _pipeline;
-        private readonly Config _config = new Config();
+        private readonly object _sync = new object();
+        private readonly IRealSenseCapture _capture;
         private VideoCapabilities _videoResolution;
         private VideoCapabilities _depthResolution;
-        private CancellationTokenSource _tokenSource;
+        private CaptureSession _session;
         private int _framesReceived;
         private long _bytesReceived;
 
@@ -35,23 +32,19 @@ namespace UMapx.Video.RealSense
         /// <summary>
         /// Creates video source for Intel RealSense Depth camera.
         /// </summary>
-        public RealSenseVideoSource()
+        /// <remarks>Discovers the first connected device synchronously. SDK loading and
+        /// discovery errors are thrown by the constructor, before event handlers can be attached.</remarks>
+        /// <exception cref="InvalidOperationException">No RealSense camera was found.</exception>
+        public RealSenseVideoSource() : this(new RealSenseCapture())
         {
-            using var ctx = new Context();
-            using var devices = ctx.QueryDevices();
-            _device = devices.FirstOrDefault();
+        }
 
-            if (_device is null)
-            {
-                throw new NullReferenceException("Intel RealSense Depth camera not found");
-            }
-            else
-            {
-                Source = _device.Info[CameraInfo.Name];
-                SerialNumber = _device.Info[CameraInfo.SerialNumber];
-                FirmwareVersion = _device.Info[CameraInfo.FirmwareVersion];
-                _pipeline = new Pipeline();
-            }
+        internal RealSenseVideoSource(IRealSenseCapture capture)
+        {
+            _capture = capture ?? throw new ArgumentNullException(nameof(capture));
+            Source = capture.Source;
+            SerialNumber = capture.SerialNumber;
+            FirmwareVersion = capture.FirmwareVersion;
         }
 
         #endregion
@@ -63,7 +56,7 @@ namespace UMapx.Video.RealSense
         /// </summary>
         /// 
         /// <remarks><para>The property allows to set one of the video resolutions supported by the camera.
-        /// Use <see cref="VideoCapabilities"/> property to get the list of supported video resolutions.</para>
+        /// Use <see cref="VideoResolutions"/> to get the list of supported video resolutions.</para>
         /// 
         /// <para><note>The property must be set before camera is started to make any effect.</note></para>
         /// 
@@ -88,7 +81,7 @@ namespace UMapx.Video.RealSense
         /// </summary>
         /// 
         /// <remarks><para>The property allows to set one of the depth resolutions supported by the camera.
-        /// Use <see cref="VideoCapabilities"/> property to get the list of supported depth resolutions.</para>
+        /// Use <see cref="DepthResolutions"/> to get the list of supported depth resolutions.</para>
         /// 
         /// <para><note>The property must be set before camera is started to make any effect.</note></para>
         /// 
@@ -135,9 +128,7 @@ namespace UMapx.Video.RealSense
         {
             get
             {
-                int frames = _framesReceived;
-                _framesReceived = 0;
-                return frames;
+                return Interlocked.Exchange(ref _framesReceived, 0);
             }
         }
 
@@ -153,9 +144,7 @@ namespace UMapx.Video.RealSense
         {
             get
             {
-                long bytes = _bytesReceived;
-                _bytesReceived = 0;
-                return bytes;
+                return Interlocked.Exchange(ref _bytesReceived, 0);
             }
         }
 
@@ -163,9 +152,13 @@ namespace UMapx.Video.RealSense
         /// State of the video source.
         /// </summary>
         /// 
-        /// <remarks>Current state of video source object - running or not.</remarks>
+        /// <remarks>Remains true until capture, completion handlers and cleanup have returned.
+        /// Call <see cref="WaitForStop()"/> before restarting the source.</remarks>
         /// 
-        public bool IsRunning { get; private set; }
+        public bool IsRunning
+        {
+            get { lock (_sync) return _session != null && _session.Thread.IsAlive; }
+        }
 
         #endregion
 
@@ -174,11 +167,15 @@ namespace UMapx.Video.RealSense
         /// <summary>
         /// Intel RealSense depth action event handler.
         /// </summary>
+        /// <remarks>Raised on the capture thread. Depth is aligned to color and supplied as
+        /// a ushort[height, width] array of raw device depth units, not necessarily millimeters.</remarks>
         public event NewDepthEventHandler NewDepth;
 
         /// <summary>
         /// Intel RealSense frame action event handler.
         /// </summary>
+        /// <remarks>Raised on the capture thread. The source disposes the bitmap after the
+        /// handler returns; clone it to retain the frame and dispose the clone when finished.</remarks>
         public event NewFrameEventHandler NewFrame;
 
         /// <summary>
@@ -209,93 +206,25 @@ namespace UMapx.Video.RealSense
         /// 
         /// <remarks>Starts video source and return execution to caller. Video source
         /// object creates background thread and notifies about new frames with the
-        /// help of <see cref="NewFrame"/> event.</remarks>
+        /// help of <see cref="NewFrame"/> event. Camera startup and capture failures are reported
+        /// through <see cref="VideoSourceError"/> followed by <see cref="PlayingFinished"/>.
+        /// Calling Start while a previous run is still stopping has no effect.</remarks>
         /// 
         public void Start()
         {
-            if (!IsRunning)
+            lock (_sync)
             {
-                try
+                if (_disposed) throw new ObjectDisposedException(nameof(RealSenseVideoSource));
+                if (_session != null && _session.Thread.IsAlive) return;
+
+                Interlocked.Exchange(ref _framesReceived, 0);
+                Interlocked.Exchange(ref _bytesReceived, 0);
+                var session = new CaptureSession(this, _videoResolution, _depthResolution);
+                _session = session;
+                try { session.Thread.Start(); }
+                catch
                 {
-                    // depth sensor 
-                    var depthProfile = DepthResolutions.FirstOrDefault();
-
-                    if (_depthResolution is object)
-                    {
-                        _config.EnableStream(Stream.Depth, 
-                            _depthResolution.FrameSize.Width, 
-                            _depthResolution.FrameSize.Height, Format.Z16, 
-                            _depthResolution.AverageFrameRate);
-                    }
-                    else
-                    {
-                        _config.EnableStream(Stream.Depth, 
-                            depthProfile.FrameSize.Width, 
-                            depthProfile.FrameSize.Height, 
-                            Format.Z16, 
-                            depthProfile.MaximumFrameRate);
-                    }
-
-                    // rgb sensor
-                    var colorProfile = VideoResolutions.FirstOrDefault();
-
-                    if (_videoResolution is object)
-                    {
-                        _config.EnableStream(Stream.Color, 
-                            _videoResolution.FrameSize.Width, 
-                            _videoResolution.FrameSize.Height, 
-                            Format.Rgb8, 
-                            _videoResolution.AverageFrameRate);
-                    }
-                    else
-                    {
-                        _config.EnableStream(Stream.Color, 
-                            colorProfile.FrameSize.Width, 
-                            colorProfile.FrameSize.Height, 
-                            Format.Rgb8, 
-                            colorProfile.MaximumFrameRate);
-                    }
-
-                    // options
-                    _tokenSource = new CancellationTokenSource();
-                    _framesReceived = 0;
-                    _bytesReceived = 0;
-                    IsRunning = true;
-
-                    // pipeline
-                    using var pp = _pipeline.Start(_config);
-                    var colorBitmap = default(Bitmap);
-                    var depthBitmap = default(ushort[,]);
-
-                    Task.Factory.StartNew(() =>
-                    {
-                        while (!_tokenSource.Token.IsCancellationRequested)
-                        {
-                            using var frameset = _pipeline.WaitForFrames();
-                            using var colorizer = new Colorizer();
-                            using var align = new Align(Stream.Color);
-
-                            using var aligned = align.Process(frameset);
-                            using var alignedframeset = aligned.As<FrameSet>();
-
-                            using var colorFrame = alignedframeset.ColorFrame;
-                            using var depthFrame = alignedframeset.DepthFrame;
-
-                            colorBitmap = colorFrame.ToBitmap();
-                            depthBitmap = depthFrame.ToArray();
-
-                            OnNewFrame(colorBitmap);
-                            OnNewDepth(depthBitmap);
-
-                            colorBitmap?.Dispose();
-                            depthBitmap = null;
-                        }
-                    }, _tokenSource.Token);
-                }
-                catch (Exception ex)
-                {
-                    VideoSourceError?.Invoke(this, new VideoSourceErrorEventArgs(ex.Message));
-                    IsRunning = false;
+                    _session = null;
                     throw;
                 }
             }
@@ -304,48 +233,158 @@ namespace UMapx.Video.RealSense
         /// <summary>
         /// Signal video source to stop its work.
         /// </summary>
-        /// 
-        /// <remarks>Signals video source to stop its background thread, stop to
-        /// provide new frames and free resources.</remarks>
-        /// 
+        /// <remarks>Requests shutdown without waiting for frame handlers or releasing
+        /// resources they may still be using. Call <see cref="WaitForStop()"/> to wait.</remarks>
         public void SignalToStop()
         {
-            if (IsRunning)
+            lock (_sync)
             {
-                _tokenSource?.Cancel();
-                _pipeline?.Stop();
-                _config?.DisableAllStreams();
-                PlayingFinished?.Invoke(this, ReasonToFinishPlaying.StoppedByUser);
-                IsRunning = false;
+                if (_session != null) _session.StopRequested = true;
             }
         }
 
         /// <summary>
         /// Stop video source.
         /// </summary>
-        /// 
-        /// <remarks>Not implemented</remarks>
-        /// 
-        [Obsolete]
+        /// <remarks>Signals the source to stop and waits for completion. From a source
+        /// callback, shutdown completes after the callback returns.</remarks>
+        [Obsolete("Use SignalToStop followed by WaitForStop.")]
         public void Stop()
         {
-            throw new NotImplementedException();
+            CaptureSession session;
+            lock (_sync)
+            {
+                session = _session;
+                if (session != null) session.StopRequested = true;
+            }
+            // Wait for the run we signalled, even if another caller starts a later run.
+            WaitForStop(session);
         }
 
         /// <summary>
         /// Wait for video source has stopped.
         /// </summary>
-        /// 
-        /// <remarks>Not implemented</remarks>
-        [Obsolete]
+        /// <remarks>Waits for capture, notifications and resource cleanup. Does not block
+        /// inside this source's callbacks, which must return before shutdown can finish.</remarks>
         public void WaitForStop()
         {
-            throw new NotImplementedException();
+            CaptureSession session;
+            lock (_sync) session = _session;
+            WaitForStop(session);
+        }
+
+        private static void WaitForStop(CaptureSession session)
+        {
+            if (session != null && session.Thread != Thread.CurrentThread)
+                session.Thread.Join();
         }
 
         #endregion
 
         #region Private voids
+
+        private void WorkerThread(CaptureSession session)
+        {
+            Exception error = null;
+            try
+            {
+                if (!session.StopRequested)
+                {
+                    _capture.Start(session.VideoResolution, session.DepthResolution);
+                    var waiting = Stopwatch.StartNew();
+                    while (!session.StopRequested)
+                    {
+                        // Bound each SDK wait so stopping does not have to close an active pipeline.
+                        using var frame = _capture.ReadFrame(100);
+                        if (session.StopRequested) break;
+                        if (frame == null)
+                        {
+                            if (waiting.ElapsedMilliseconds >= 5000)
+                                throw new TimeoutException("No RealSense frames received for 5 seconds.");
+                            continue;
+                        }
+
+                        OnNewFrame(frame.Color);
+                        if (!session.StopRequested) OnNewDepth(frame.Depth);
+                        waiting.Restart();
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                error = exception;
+            }
+            finally
+            {
+                // This worker alone stops the SDK, including a partially failed startup.
+                try { _capture.Stop(); }
+                catch (Exception exception) { error = error ?? exception; }
+                try { DisposeCaptureIfRequested(); }
+                catch (Exception exception) { error = error ?? exception; }
+
+                try
+                {
+                    if (error != null) OnVideoSourceError(error);
+                    OnPlayingFinished(error == null
+                        ? ReasonToFinishPlaying.StoppedByUser
+                        : ReasonToFinishPlaying.VideoSourceError);
+                }
+                finally
+                {
+                    // A terminal event handler may itself have requested disposal.
+                    try { DisposeCaptureIfRequested(); }
+                    catch (Exception exception) { OnVideoSourceError(exception); }
+                }
+            }
+        }
+
+        private void OnVideoSourceError(Exception error)
+        {
+            var handlers = VideoSourceError;
+            if (handlers == null) return;
+            var args = new VideoSourceErrorEventArgs(error.Message);
+            foreach (VideoSourceErrorEventHandler handler in handlers.GetInvocationList())
+            {
+                try { handler(this, args); }
+                catch (Exception)
+                {
+                    // A diagnostic subscriber must not prevent cleanup or completion notification.
+                }
+            }
+        }
+
+        private void OnPlayingFinished(ReasonToFinishPlaying reason)
+        {
+            var handlers = PlayingFinished;
+            if (handlers == null) return;
+            foreach (PlayingFinishedEventHandler handler in handlers.GetInvocationList())
+            {
+                try { handler(this, reason); }
+                catch (Exception)
+                {
+                    // Terminal subscribers cannot be allowed to escape the background thread.
+                }
+            }
+        }
+
+        private sealed class CaptureSession
+        {
+            internal readonly Thread Thread;
+            internal readonly VideoCapabilities VideoResolution;
+            internal readonly VideoCapabilities DepthResolution;
+            internal volatile bool StopRequested;
+
+            internal CaptureSession(RealSenseVideoSource owner, VideoCapabilities video, VideoCapabilities depth)
+            {
+                VideoResolution = video;
+                DepthResolution = depth;
+                Thread = new Thread(() => owner.WorkerThread(this))
+                {
+                    IsBackground = true,
+                    Name = nameof(RealSenseVideoSource)
+                };
+            }
+        }
 
         /// <summary>
         /// Called when video source gets new frame.
@@ -353,8 +392,8 @@ namespace UMapx.Video.RealSense
         /// <param name="frame">Frame</param>
         private void OnNewFrame(Bitmap frame)
         {
-            _framesReceived++;
-            _bytesReceived += frame.Width * frame.Height * (Image.GetPixelFormatSize(frame.PixelFormat) >> 3);
+            Interlocked.Increment(ref _framesReceived);
+            Interlocked.Add(ref _bytesReceived, (long)frame.Width * frame.Height * (Image.GetPixelFormatSize(frame.PixelFormat) >> 3));
             NewFrame?.Invoke(this, new NewFrameEventArgs(frame));
         }
 
@@ -372,6 +411,7 @@ namespace UMapx.Video.RealSense
         #region IDisposable
 
         private bool _disposed;
+        private bool _captureDisposed;
 
         /// <inheritdoc/>
         public void Dispose()
@@ -383,16 +423,31 @@ namespace UMapx.Video.RealSense
         /// <inheritdoc/>
         protected virtual void Dispose(bool disposing)
         {
-            if (!_disposed)
+            if (!disposing) return;
+
+            CaptureSession session;
+            lock (_sync)
             {
-                if (disposing)
-                {
-                    _device?.Dispose();
-                    _pipeline?.Dispose();
-                    _config?.Dispose();
-                    _tokenSource?.Dispose();
-                }
                 _disposed = true;
+                session = _session;
+                if (session != null) session.StopRequested = true;
+            }
+
+            // A subscriber on this worker cannot wait for itself. Its finally performs disposal.
+            if (session != null && session.Thread == Thread.CurrentThread) return;
+            WaitForStop(session);
+            DisposeCaptureIfRequested();
+        }
+
+        private void DisposeCaptureIfRequested()
+        {
+            lock (_sync)
+            {
+                if (_disposed && !_captureDisposed)
+                {
+                    _captureDisposed = true;
+                    _capture.Dispose();
+                }
             }
         }
 
@@ -413,35 +468,12 @@ namespace UMapx.Video.RealSense
         {
             get
             {
-                var sensors = _device.Sensors;
-
-                // depth sensor
-                using var depthSensor = sensors[0];
-                var depthProfiles = depthSensor.StreamProfiles
-                                    .Where(p => p.Stream == Stream.Depth)
-                                    .Where(p => p.Format == Format.Z16)
-                                    .OrderBy(p => p.Framerate)
-                                    .Select(p => p.As<VideoStreamProfile>()).ToArray();
-
-                var count = depthProfiles.Count();
-                var videoCapabilitiesArray = new VideoCapabilities[count];
-
-                for (int i = 0; i < count; i++)
+                lock (_sync)
                 {
-                    using var profile = depthProfiles[i];
-                    videoCapabilitiesArray[i] = new VideoCapabilities(new Size
-                    {
-                        Width = profile.Width,
-                        Height = profile.Height
-                    },
-                    profile.Framerate,
-                    profile.Framerate,
-                    16);
+                    if (_disposed) throw new ObjectDisposedException(nameof(RealSenseVideoSource));
+                    return _capture.DepthResolutions;
                 }
-
-                return videoCapabilitiesArray;
             }
-            
         }
 
         /// <summary>
@@ -451,36 +483,14 @@ namespace UMapx.Video.RealSense
         {
             get
             {
-                var sensors = _device.Sensors;
-
-                // rgb sensor
-                using var colorSensor = sensors[1];
-                var colorProfiles = colorSensor.StreamProfiles
-                                    .Where(p => p.Stream == Stream.Color)
-                                    .Where(p => p.Format == Format.Rgb8)
-                                    .OrderBy(p => p.Framerate)
-                                    .Select(p => p.As<VideoStreamProfile>()).ToArray();
-
-                var count = colorProfiles.Count();
-                var videoCapabilitiesArray = new VideoCapabilities[count];
-
-                for (int i = 0; i < count; i++)
+                lock (_sync)
                 {
-                    using var profile = colorProfiles[i];
-                    videoCapabilitiesArray[i] = new VideoCapabilities(new Size
-                    {
-                        Width = profile.Width,
-                        Height = profile.Height
-                    },
-                    profile.Framerate,
-                    profile.Framerate,
-                    32);
+                    if (_disposed) throw new ObjectDisposedException(nameof(RealSenseVideoSource));
+                    return _capture.VideoResolutions;
                 }
-
-                return videoCapabilitiesArray;
             }
         }
-        
+
         #endregion
     }
 }

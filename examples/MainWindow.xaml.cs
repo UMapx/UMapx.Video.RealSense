@@ -1,203 +1,221 @@
-﻿using System.Drawing;
+﻿using System;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
-using System.Threading;
+using System.Threading.Tasks;
+using System.Windows;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using UMapx.Imaging;
 
 namespace UMapx.Video.RealSense.Example
 {
-    /// <summary>
-    /// Interaction logic for MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : System.Windows.Window
     {
-        #region Fields
+        private readonly Func<IVideoDepthSource> _createSource;
+        private readonly object _framesSync = new object();
+        private readonly DispatcherTimer _renderTimer;
+        private volatile IVideoDepthSource _source;
+        private BitmapSource _pendingColor;
+        private BitmapSource _pendingDepth;
+        private Task _connectionTask = Task.CompletedTask;
+        private Task _shutdownTask;
+        private volatile bool _closing;
+        private bool _allowClose;
+        private bool _closeInProgress;
+        private bool _hasError;
+        private bool _finished;
 
-        private readonly IVideoDepthSource _realSenseVideoSource;
-        private static readonly object _locker = new object();
-        private Bitmap _frame;
-        private Bitmap _depth;
+        public MainWindow() : this(() => new RealSenseVideoSource()) { }
 
-        #endregion
-
-        #region Launcher
-
-        /// <summary>
-        /// Constructor.
-        /// </summary>
-        public MainWindow()
+        internal MainWindow(Func<IVideoDepthSource> createSource)
         {
+            _createSource = createSource ?? throw new ArgumentNullException(nameof(createSource));
             InitializeComponent();
-            Closing += MainWindow_Closing;
-
-            _realSenseVideoSource = new RealSenseVideoSource();
-            _realSenseVideoSource.NewFrame += OnNewFrame;
-            _realSenseVideoSource.NewDepth += OnNewDepth;
-            _realSenseVideoSource.Start();
-        }
-
-        /// <summary>
-        /// Windows closing.
-        /// </summary>
-        /// <param name="sender">Sender</param>
-        /// <param name="e">Event args</param>
-        private void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
-        {
-            _realSenseVideoSource.SignalToStop();
-        }
-
-        #endregion
-
-        #region Properties
-
-        /// <summary>
-        /// Get frame and dispose previous.
-        /// </summary>
-        Bitmap Frame
-        {
-            get
+            Loaded += async (_, _) => await ConnectAsync();
+            Closing += OnClosing;
+            _renderTimer = new DispatcherTimer(DispatcherPriority.Render, Dispatcher)
             {
-                if (_frame is null)
-                    return null;
-
-                Bitmap frame;
-
-                lock (_locker)
-                {
-                    frame = (Bitmap)_frame.Clone();
-                }
-
-                return frame;
-            }
-            set
-            {
-                lock (_locker)
-                {
-                    if (_frame is object)
-                    {
-                        _frame.Dispose();
-                        _frame = null;
-                    }
-
-                    _frame = value;
-                }
-            }
+                Interval = TimeSpan.FromMilliseconds(33)
+            };
+            _renderTimer.Tick += (_, _) => RenderPendingFrames();
+            _renderTimer.Start();
         }
 
-        /// <summary>
-        /// Gets depth and dispose previous.
-        /// </summary>
-        Bitmap Depth
+        private async void OnReconnect(object sender, RoutedEventArgs e) => await ConnectAsync();
+
+        internal Task ConnectAsync()
         {
-            get
-            {
-                if (_depth is null)
-                    return null;
-
-                Bitmap depth;
-
-                lock (_locker)
-                {
-                    depth = (Bitmap)_depth.Clone();
-                }
-
-                return depth;
-            }
-            set
-            {
-                lock (_locker)
-                {
-                    if (_depth is object)
-                    {
-                        _depth.Dispose();
-                        _depth = null;
-                    }
-
-                    _depth = value;
-                }
-            }
+            if (_closing || !_connectionTask.IsCompleted) return _connectionTask;
+            return _connectionTask = ConnectCoreAsync();
         }
 
-        #endregion
-
-        #region Handling events
-
-        /// <summary>
-        /// Frame handling on event call.
-        /// </summary>
-        /// <param name="sender">sender</param>
-        /// <param name="eventArgs">event arguments</param>
-        private void OnNewFrame(object sender, NewFrameEventArgs eventArgs)
+        private async Task ConnectCoreAsync()
         {
-            Frame = (Bitmap)eventArgs.Frame.Clone();
-            InvokeDrawing();
-        }
-
-        /// <summary>
-        /// Depth handling on event call.
-        /// </summary>
-        /// <param name="sender">sender</param>
-        /// <param name="eventArgs">event arguments</param>
-        private void OnNewDepth(object sender, NewDepthEventArgs eventArgs)
-        {
-            Depth = eventArgs.Depth.Equalize().FromDepth();
-            InvokeDrawing();
-        }
-
-        #endregion
-
-        #region Private voids
-
-        /// <summary>
-        /// Draw calculated <see cref="BitmapImage"/> based on <see cref="RealSenseVideoSource"/> bitmap converted frames
-        /// in <see cref="Window"/> Image element
-        /// </summary>
-        private void InvokeDrawing()
-        {
+            reconnectButton.IsEnabled = false;
+            statusText.Text = "Connecting to RealSense camera...";
+            _hasError = false;
+            _finished = false;
             try
             {
-                // color drawing
-                var printColor = Frame;
-
-                if (printColor is object)
+                await DisconnectAsync();
+                var source = await Task.Run(_createSource);
+                if (_closing)
                 {
-                    var bitmapColor = ToBitmapImage(printColor);
-                    bitmapColor.Freeze();
-                    Dispatcher.BeginInvoke(new ThreadStart(delegate { imgColor.Source = bitmapColor; }));
+                    await Task.Run(source.Dispose);
+                    return;
                 }
-
-                // depth drawing
-                var printDepth = Depth;
-                
-                if (printDepth is object)
-                {
-                    var bitmapDepth = ToBitmapImage(printDepth);
-                    bitmapDepth.Freeze();
-                    Dispatcher.BeginInvoke(new ThreadStart(delegate { imgDepth.Source = bitmapDepth; }));
-                }
+                _source = source;
+                source.NewFrame += OnNewFrame;
+                source.NewDepth += OnNewDepth;
+                source.VideoSourceError += OnVideoSourceError;
+                source.PlayingFinished += OnPlayingFinished;
+                statusText.Text = "Waiting for color and depth frames...";
+                source.Start();
             }
-            catch { }
+            catch (Exception error)
+            {
+                ShowError(error.Message);
+                try { await DisconnectAsync(); }
+                catch (Exception cleanupError) { ShowError(error.Message + " " + cleanupError.Message); }
+            }
+            finally
+            {
+                if (!_closing) reconnectButton.IsEnabled = true;
+            }
         }
 
-        /// <summary>
-        /// Converts a <see cref="Bitmap"/> to <see cref="BitmapImage"/>.
-        /// </summary>
-        /// <param name="bitmap">Bitmap</param>
-        /// <returns>BitmapImage</returns>
-        private BitmapImage ToBitmapImage(Bitmap bitmap)
+        private async Task DisconnectAsync()
         {
-            var bi = new BitmapImage();
-            bi.BeginInit();
-            var ms = new MemoryStream();
-            bitmap.Save(ms, ImageFormat.Bmp);
-            ms.Seek(0, SeekOrigin.Begin);
-            bi.StreamSource = ms;
-            bi.EndInit();
-            return bi;
+            var source = _source;
+            _source = null;
+            lock (_framesSync) { _pendingColor = null; _pendingDepth = null; }
+            imgColor.Source = null;
+            imgDepth.Source = null;
+            if (source == null) return;
+            source.NewFrame -= OnNewFrame;
+            source.NewDepth -= OnNewDepth;
+            source.VideoSourceError -= OnVideoSourceError;
+            source.PlayingFinished -= OnPlayingFinished;
+            // SDK shutdown can wait for a callback; keep the dispatcher free while it completes.
+            await Task.Run(() =>
+            {
+                try { source.SignalToStop(); }
+                finally { source.Dispose(); }
+            });
         }
 
-        #endregion
+        private void OnNewFrame(object sender, NewFrameEventArgs e)
+        {
+            if (_closing || !ReferenceEquals(sender, _source)) return;
+            var image = ToBitmapImage(e.Frame);
+            lock (_framesSync)
+            {
+                if (!_closing && ReferenceEquals(sender, _source)) _pendingColor = image;
+            }
+        }
+
+        private void OnNewDepth(object sender, NewDepthEventArgs e)
+        {
+            if (_closing || !ReferenceEquals(sender, _source)) return;
+            using var bitmap = e.Depth.Equalize().FromDepth();
+            var image = ToBitmapImage(bitmap);
+            lock (_framesSync)
+            {
+                if (!_closing && ReferenceEquals(sender, _source)) _pendingDepth = image;
+            }
+        }
+
+        internal void RenderPendingFrames()
+        {
+            if (_closing) return;
+            BitmapSource color, depth;
+            lock (_framesSync)
+            {
+                color = _pendingColor;
+                depth = _pendingDepth;
+                _pendingColor = null;
+                _pendingDepth = null;
+            }
+            if (color != null) imgColor.Source = color;
+            if (depth != null) imgDepth.Source = depth;
+            if ((color != null || depth != null) && !_hasError && !_finished)
+                statusText.Text = "Streaming color and depth.";
+        }
+
+        private void OnVideoSourceError(object sender, VideoSourceErrorEventArgs e)
+        {
+            PostStatus(sender, () => ShowError(e.Description));
+        }
+
+        private void OnPlayingFinished(object sender, ReasonToFinishPlaying reason)
+        {
+            PostStatus(sender, () =>
+            {
+                _finished = true;
+                if (!_hasError) statusText.Text = "Capture stopped. Connect a camera and click Reconnect.";
+            });
+        }
+
+        private void PostStatus(object sender, Action update)
+        {
+            if (_closing || Dispatcher.HasShutdownStarted) return;
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                if (!_closing && ReferenceEquals(sender, _source)) update();
+            }));
+        }
+
+        private void ShowError(string message)
+        {
+            _hasError = true;
+            statusText.Text = "Camera error: " + message + " Connect a camera and click Reconnect.";
+        }
+
+        internal Task ShutdownAsync()
+        {
+            if (_shutdownTask != null) return _shutdownTask;
+            _closing = true;
+            _renderTimer.Stop();
+            reconnectButton.IsEnabled = false;
+            return _shutdownTask = ShutdownCoreAsync();
+        }
+
+        private async Task ShutdownCoreAsync()
+        {
+            try { await _connectionTask; }
+            finally { await DisconnectAsync(); }
+        }
+
+        private async void OnClosing(object sender, CancelEventArgs e)
+        {
+            if (_allowClose) return;
+            e.Cancel = true;
+            if (_closeInProgress) return;
+            _closeInProgress = true;
+            try { await ShutdownAsync(); }
+            catch (Exception error) { Trace.TraceError("RealSense shutdown failed: {0}", error); }
+            finally
+            {
+                _allowClose = true;
+                _ = Dispatcher.BeginInvoke(new Action(Close));
+            }
+        }
+
+        internal static BitmapImage ToBitmapImage(Bitmap bitmap)
+        {
+            using var stream = new MemoryStream();
+            bitmap.Save(stream, ImageFormat.Bmp);
+            stream.Position = 0;
+            var image = new BitmapImage();
+            image.BeginInit();
+            image.CacheOption = BitmapCacheOption.OnLoad;
+            image.StreamSource = stream;
+            image.EndInit();
+            image.Freeze();
+            return image;
+        }
     }
 }
