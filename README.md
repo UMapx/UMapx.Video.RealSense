@@ -46,7 +46,7 @@ frame if it must remain available after its `NewFrame` handler returns.
 
 # Build and test
 
-Run `dotnet test sources/UMapx.Video.RealSense.sln -c Release` on Windows x64 with the .NET 8
+Run `dotnet test UMapx.Video.RealSense.sln -c Release` on Windows x64 with the .NET 8
 SDK, or a newer SDK with the .NET 8 Desktop Runtime installed. Tests cover capture lifecycle,
 WPF preview and shutdown, and the native SDK with a software RealSense device. They check
 color/depth conversion, row padding, alignment and capture restart without a physical camera.
