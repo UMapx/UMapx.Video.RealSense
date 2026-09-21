@@ -1,61 +1,109 @@
-<p align="center"><img width="25%" src="docs/umapxnet_big.png" /></p>
-<p align="center"> UMapx sub-library for interacting with Intel RealSense Depth cameras </p>  
+<p align="center"><img width="25%" src="https://raw.githubusercontent.com/UMapx/UMapx.Video.RealSense/main/docs/umapxnet_big.png" /></p>
+<p align="center">UMapx sub-library for color and depth capturing with Intel RealSense cameras</p>
 
 # Installation
-This package requires Windows x64. Its native SDK dependency contains a Windows x64 DLL.
+Install **UMapx.Video.RealSense** to your project using [NuGet](https://www.nuget.org/packages/UMapx.Video.RealSense/) package manager.
 
-<p align="center"><img width="70%" src="docs/camera.jpg"/></p>  
-
-Install Intel RealSense Viewer from [realses](https://github.com/IntelRealSense/librealsense/releases) and upload one of the json available [presets](https://github.com/IntelRealSense/librealsense/wiki/D400-Series-Visual-Presets) in application. Install **UMapx.Video.RealSense** to your project using [NuGet](https://www.nuget.org/packages/UMapx.Video.RealSense/) package manager.
-
-C# interface
-```c#
+```csharp
 using UMapx.Video.RealSense;
 ```
-To get started with **UMapx.Video.RealSense** try simple [example](examples).
 
-# Example
+See the [WPF color and depth example](https://github.com/UMapx/UMapx.Video.RealSense/tree/main/examples).
+The window reports camera errors and provides **Reconnect** to retry after connecting a camera.
 
-The WPF example runs on Windows x64 and targets .NET 8, like the UMapx.Video.Windows
-example. Install the .NET 8 SDK to build it, or the .NET 8 Desktop Runtime to run a
-framework-dependent build. The native RealSense SDK is supplied by the NuGet dependency.
+The `librealsense.x64` NuGet dependency supplies `realsense2.dll`. Keep the native runtime
+files produced by build or publish with your application. [RealSense Viewer](https://github.com/realsenseai/librealsense/releases)
+is optional and can help check the camera and try [D400 visual presets](https://github.com/realsenseai/librealsense/wiki/D400-Series-Visual-Presets).
+The library and example do not automatically load the JSON preset in [resources](https://github.com/UMapx/UMapx.Video.RealSense/tree/main/resources).
 
-```sh
-dotnet run --project examples/UMapx.Video.RealSense.Example.csproj -c Release
-```
+<p align="center"><img width="70%" src="https://raw.githubusercontent.com/UMapx/UMapx.Video.RealSense/main/docs/camera.jpg" /></p>
 
-The window displays camera discovery and capture errors, including when no camera is
-connected. Connect the camera and click **Reconnect** to retry. Closing the window waits
-for capture cleanup without blocking the UI. The preview retains only the latest frames.
+# Platform support
+
+The library targets **.NET Standard 2.0** but requires Windows and a 64-bit application
+process: it uses the native RealSense SDK and System.Drawing.Common. The library itself
+can remain **AnyCPU**; set the consuming application's platform target to **x64**, as in
+the example. Linux, macOS and x86 processes are not supported by this package.
+
+Regression tests cover Windows with .NET 8 in an x64 process. Building the repository
+requires the .NET 8 SDK, or a newer SDK with the .NET 8 runtime installed. The WPF example
+and its tests also require the .NET 8 Windows Desktop runtime.
+ARM64 and .NET Framework are not covered by this test suite.
+
+The camera must provide RGB8 color and Z16 depth streams supported by the bundled SDK.
+Physical cameras need separate validation with the intended model, firmware and stream profiles.
 
 # Capturing and stopping
 
-`Start()` launches background capture. Camera startup errors, frame timeouts and exceptions
-from `NewFrame` or `NewDepth` handlers stop that run and raise `VideoSourceError`, followed
-by `PlayingFinished` with `ReasonToFinishPlaying.VideoSourceError`.
+```csharp
+using var source = new RealSenseVideoSource();
+source.NewFrame += (_, e) =>
+{
+    // The source owns e.Frame. Clone it when retaining or processing a separate image.
+    using var copy = (System.Drawing.Bitmap)e.Frame.Clone();
+    // Process copy here; dispose retained copies when they are no longer needed.
+};
+source.NewDepth += (_, e) =>
+{
+    // Depth is aligned to color: ushort[height, width] in raw device depth units.
+    var depth = e.Depth;
+    // Process depth here.
+};
+source.VideoSourceError += (_, e) => Console.Error.WriteLine(e.Description);
+source.Start();
 
-`SignalToStop()` requests shutdown without waiting. Call `WaitForStop()` afterwards to wait
-for frame handlers, completion notifications and cleanup before restarting. `IsRunning`
-remains true until the worker exits; `Start()` has no effect while that worker is alive.
-The obsolete `Stop()` method requests shutdown and waits for that run to finish.
+// When capture is no longer needed, outside a source event handler:
+source.SignalToStop();
+source.WaitForStop();
+```
 
-`Dispose()` stops capture before releasing SDK resources and prevents further starts.
-When `Stop()`, `WaitForStop()` or `Dispose()` is called from this source's own event handler,
-it does not wait for itself; cleanup completes after the handler returns. Clone a color
-frame if it must remain available after its `NewFrame` handler returns.
+The constructor selects the first connected device. Missing-camera and SDK-loading
+errors are thrown synchronously, so handle them around construction. Startup and capture
+errors after `Start()`, including exceptions from frame handlers, stop the current run
+and raise `VideoSourceError`, then `PlayingFinished` with `ReasonToFinishPlaying.VideoSourceError`.
+
+`SignalToStop()` requests shutdown and returns immediately. `WaitForStop()` waits for the
+worker, callbacks and cleanup to finish. `IsRunning` stays true until the worker exits;
+`Start()` has no effect during that time. `Stop()` is obsolete; use the signal/wait pair.
+`Dispose()` requests shutdown, waits for completion and releases the SDK resources.
+
+From the source's own event handler, `Stop()`, `WaitForStop()` and `Dispose()` do not wait
+for the current thread. Shutdown requested there completes after the handler returns.
+A blocked SDK call or a handler that never returns can delay shutdown. Handlers should
+return promptly. Dispatch UI updates asynchronously and perform blocking shutdown off
+the UI thread, as the example does.
+
+Choose `VideoResolution` and `DepthResolution` from `VideoResolutions` and `DepthResolutions`
+before `Start()`. The chosen profiles must work together on the camera. `NewDepth` delivers
+a matrix aligned to the color image; its raw values are not necessarily millimeters.
+Both frame events run on the capture thread. The source disposes the color bitmap after
+callbacks complete; clone it if processing must continue afterwards.
 
 # Build and test
 
-The root solution contains the library and its tests. Run
-`dotnet test UMapx.Video.RealSense.sln -c Release` on Windows x64 with the .NET 8 SDK,
-or a newer SDK with the .NET 8 runtime installed. Tests cover capture lifecycle and the
-native SDK with a software RealSense device. They check color/depth conversion, row padding,
-alignment and capture restart without a physical camera.
-Actual streaming and USB disconnect behavior still require a physical RealSense device.
+Run on Windows from the repository root:
 
-The example and its WPF preview/shutdown tests are in a separate solution. Run
-`dotnet test examples/UMapx.Video.RealSense.Example.sln -c Release` with the .NET 8
-Desktop Runtime installed.
+```powershell
+dotnet build UMapx.Video.RealSense.sln -c Release
+dotnet build examples/UMapx.Video.RealSense.Example.sln -c Release
+dotnet test tests/UMapx.Video.RealSense.Tests.csproj -c Release
+dotnet test examples/tests/UMapx.Video.RealSense.Example.Tests.csproj -c Release
+```
+
+The root solution contains the library and its tests. The example and its WPF tests
+are in the separate solution under `examples`.
+
+Tests use a software RealSense device and a simulated capture backend; they do not require
+a physical camera. They cover native SDK startup, depth alignment, row padding, conversion,
+capture errors, concurrent shutdown, disposal and restarts. The example tests cover frame
+display, error handling, reconnection and window shutdown. Sustained capture and USB
+disconnect/reconnect still need testing on a physical device.
+
+To run the example:
+
+```powershell
+dotnet run --project examples/UMapx.Video.RealSense.Example.csproj -c Release
+```
 
 # License
 MIT
