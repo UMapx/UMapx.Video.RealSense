@@ -32,6 +32,9 @@ namespace UMapx.Video.RealSense
         /// <summary>
         /// Creates video source for Intel RealSense Depth camera.
         /// </summary>
+        /// <remarks>Discovers the first connected device synchronously. SDK loading and
+        /// discovery errors are thrown by the constructor, before event handlers can be attached.</remarks>
+        /// <exception cref="InvalidOperationException">No RealSense camera was found.</exception>
         public RealSenseVideoSource() : this(new RealSenseCapture())
         {
         }
@@ -53,7 +56,7 @@ namespace UMapx.Video.RealSense
         /// </summary>
         /// 
         /// <remarks><para>The property allows to set one of the video resolutions supported by the camera.
-        /// Use <see cref="VideoCapabilities"/> property to get the list of supported video resolutions.</para>
+        /// Use <see cref="VideoResolutions"/> to get the list of supported video resolutions.</para>
         /// 
         /// <para><note>The property must be set before camera is started to make any effect.</note></para>
         /// 
@@ -78,7 +81,7 @@ namespace UMapx.Video.RealSense
         /// </summary>
         /// 
         /// <remarks><para>The property allows to set one of the depth resolutions supported by the camera.
-        /// Use <see cref="VideoCapabilities"/> property to get the list of supported depth resolutions.</para>
+        /// Use <see cref="DepthResolutions"/> to get the list of supported depth resolutions.</para>
         /// 
         /// <para><note>The property must be set before camera is started to make any effect.</note></para>
         /// 
@@ -164,11 +167,15 @@ namespace UMapx.Video.RealSense
         /// <summary>
         /// Intel RealSense depth action event handler.
         /// </summary>
+        /// <remarks>Raised on the capture thread. Depth is aligned to color and supplied as
+        /// a ushort[height, width] array of raw device depth units, not necessarily millimeters.</remarks>
         public event NewDepthEventHandler NewDepth;
 
         /// <summary>
         /// Intel RealSense frame action event handler.
         /// </summary>
+        /// <remarks>Raised on the capture thread. The source disposes the bitmap after the
+        /// handler returns; clone it to retain the frame and dispose the clone when finished.</remarks>
         public event NewFrameEventHandler NewFrame;
 
         /// <summary>

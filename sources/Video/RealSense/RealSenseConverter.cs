@@ -60,10 +60,10 @@ namespace UMapx.Video.RealSense
         }
 
         /// <summary>
-        /// Converts a <see cref="DepthFrame"/> to <see cref="Bitmap"/>.
+        /// Copies a <see cref="DepthFrame"/> into a depth array.
         /// </summary>
         /// <param name="frame">Frame</param>
-        /// <returns>Bitmap</returns>
+        /// <returns>Raw depth values indexed by row and column.</returns>
         public unsafe static ushort[,] ToArray(this DepthFrame frame)
         {
             var width = frame.Width;
