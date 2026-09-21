@@ -1,0 +1,1 @@
+dotnet build sources/UMapx.Video.RealSense.csproj -c Release
