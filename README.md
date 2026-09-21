@@ -1,12 +1,10 @@
 <p align="center"><img width="25%" src="docs/umapxnet_big.png" /></p>
-<p align="center"> Cross-platform .NET library for digital signal processing </p>  
-
-# Intel RealSense Depth Camera
-**UMapx.Video.RealSense** is a sub-library for interacting with Intel RealSense Depth cameras.
-<p align="center"><img width="70%" src="docs/camera.jpg"/></p>  
+<p align="center"> UMapx sub-library for interacting with Intel RealSense Depth cameras </p>  
 
 # Installation
 This package requires Windows x64. Its native SDK dependency contains a Windows x64 DLL.
+
+<p align="center"><img width="70%" src="docs/camera.jpg"/></p>  
 
 Install Intel RealSense Viewer from [realses](https://github.com/IntelRealSense/librealsense/releases) and upload one of the json available [presets](https://github.com/IntelRealSense/librealsense/wiki/D400-Series-Visual-Presets) in application. Install **UMapx.Video.RealSense** to your project using [NuGet](https://www.nuget.org/packages/UMapx.Video.RealSense/) package manager.
 
@@ -46,7 +44,7 @@ When `Stop()`, `WaitForStop()` or `Dispose()` is called from this source's own e
 it does not wait for itself; cleanup completes after the handler returns. Clone a color
 frame if it must remain available after its `NewFrame` handler returns.
 
-# Tests
+# Build and test
 
 Run `dotnet test sources/UMapx.Video.RealSense.sln -c Release` on Windows x64 with the .NET 8
 SDK, or a newer SDK with the .NET 8 Desktop Runtime installed. Tests cover capture lifecycle,
