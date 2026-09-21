@@ -28,7 +28,7 @@ The window displays camera discovery and capture errors, including when no camer
 connected. Connect the camera and click **Reconnect** to retry. Closing the window waits
 for capture cleanup without blocking the UI. The preview retains only the latest frames.
 
-# Capture lifecycle
+# Capturing and stopping
 
 `Start()` launches background capture. Camera startup errors, frame timeouts and exceptions
 from `NewFrame` or `NewDepth` handlers stop that run and raise `VideoSourceError`, followed
