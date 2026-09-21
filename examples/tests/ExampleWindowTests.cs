@@ -4,12 +4,11 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using UMapx.Video;
-using UMapx.Video.RealSense.Example;
 using Xunit;
 using Color = System.Drawing.Color;
 using Image = System.Windows.Controls.Image;
 
-namespace UMapx.Video.RealSense.Tests;
+namespace UMapx.Video.RealSense.Example.Tests;
 
 public class ExampleWindowTests
 {

@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UMapx.Video.RealSense", "so
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UMapx.Video.RealSense.Tests", "tests\UMapx.Video.RealSense.Tests.csproj", "{981FB9F9-7176-4D43-A01C-2A7502B447F1}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UMapx.Video.RealSense.Example", "examples\UMapx.Video.RealSense.Example.csproj", "{78E31336-1171-4719-A510-5A5D723D2785}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,10 +21,6 @@ Global
 		{981FB9F9-7176-4D43-A01C-2A7502B447F1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{981FB9F9-7176-4D43-A01C-2A7502B447F1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{981FB9F9-7176-4D43-A01C-2A7502B447F1}.Release|Any CPU.Build.0 = Release|Any CPU
-		{78E31336-1171-4719-A510-5A5D723D2785}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{78E31336-1171-4719-A510-5A5D723D2785}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{78E31336-1171-4719-A510-5A5D723D2785}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{78E31336-1171-4719-A510-5A5D723D2785}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

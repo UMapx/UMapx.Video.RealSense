@@ -1,6 +1,6 @@
 using System.Windows;
 
-[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("UMapx.Video.RealSense.Tests")]
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("UMapx.Video.RealSense.Example.Tests")]
 
 [assembly: ThemeInfo(
     ResourceDictionaryLocation.None, //where theme specific resource dictionaries are located
