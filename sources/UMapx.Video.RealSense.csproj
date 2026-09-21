@@ -2,29 +2,39 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Description>UMapx sub-library for interacting with Intel RealSense Depth cameras.</Description>
-	<Version>8.0.0.1</Version>
-    <AssemblyVersion>8.0.0.1</AssemblyVersion>
-	<FileVersion>8.0.0.1</FileVersion>
-    <PackageProjectUrl>https://github.com/asiryan/UMapx</PackageProjectUrl>
-    <RepositoryType>Open-source</RepositoryType>
-    <PackageTags>image video signal processing stereo depth intel realsense camera umapx</PackageTags>
-    <PackageLicenseFile>LICENSE.md</PackageLicenseFile>
-    <PackageIcon>umapxnet.png</PackageIcon>
-    <RepositoryUrl>https://github.com/asiryan/UMapx.Video.RealSense</RepositoryUrl>
-    <Copyright>Valery Asiryan, © 2015-2025</Copyright>
-    <NeutralLanguage>en</NeutralLanguage>
-    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+	<LangVersion>8.0</LangVersion>
+	<Version>8.0.0.2</Version>
+	<AssemblyVersion>8.0.0.2</AssemblyVersion>
+	<FileVersion>8.0.0.2</FileVersion>
+	<PackageId>UMapx.Video.RealSense</PackageId>
+	<Company>Valery Asiryan</Company>
+	<Authors>Valery Asiryan</Authors>
+	<Product>UMapx</Product>
+	<Copyright>Valery Asiryan, © 2015-2026</Copyright>
+	<Description>UMapx sub-library for interacting with Intel RealSense Depth cameras.</Description>
+	<PackageProjectUrl>https://github.com/UMapx/UMapx.Video.RealSense</PackageProjectUrl>
+	<RepositoryUrl>https://github.com/UMapx/UMapx.Video.RealSense</RepositoryUrl>
+	<RepositoryType>git</RepositoryType>
+	<PackageTags>image video signal processing stereo depth intel realsense camera umapx</PackageTags>
+	<NeutralLanguage>en</NeutralLanguage>
+	<PackageLicenseFile>LICENSE.md</PackageLicenseFile>
+	<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	<PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
+	<PackageIcon>umapxnet.png</PackageIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-	  <LangVersion>8.0</LangVersion>
-	  <Optimize>true</Optimize>
-	  <DefineConstants>DEBUG;TRACE</DefineConstants>
-	  <DocumentationFile>UMapx.Video.RealSense.xml</DocumentationFile>
-	  <WarningLevel>4</WarningLevel>
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	<DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+	<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+	<GenerateDocumentationFile>true</GenerateDocumentationFile>
+	<Optimize>true</Optimize>
+	<DebugType>none</DebugType>
+	<DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
   <ItemGroup>
@@ -39,17 +49,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="librealsense.x64" Version="2.45.1" />
+    <PackageReference Include="librealsense.x64" Version="2.45.2" />
     <PackageReference Include="UMapx" Version="8.0.0.1" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Update="C:\Users\Valery\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-    <Content Update="C:\Users\Valery\.nuget\packages\librealsense.x64\2.45.1\contentFiles\any\netstandard2.0\realsense2.lib">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 
 </Project>
