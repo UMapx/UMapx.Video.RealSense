@@ -21,23 +21,32 @@ namespace UMapx.Video.RealSense
             var height = frame.Height;
             var rectangle = new Rectangle(0, 0, width, height);
             var bitmap = new Bitmap(width, height);
-            var bmData = bitmap.LockBits(rectangle, ImageLockMode.ReadWrite, PixelFormat.Format24bppRgb);
-            var dst = (byte*)bmData.Scan0.ToPointer();
-            var src = (byte*)frame.Data.ToPointer();
-
-            for (int x = 0; x < width; x++)
+            try
             {
-                for (int y = 0; y < height; y++, dst += 3, src += 3)
+                var bmData = bitmap.LockBits(rectangle, ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                try
                 {
-                    // switch rgb to bgr
-                    dst[0] = src[2];
-                    dst[1] = src[1];
-                    dst[2] = src[0];
+                    for (int y = 0; y < height; y++)
+                    {
+                        var src = (byte*)frame.Data.ToPointer() + y * frame.Stride;
+                        var dst = (byte*)bmData.Scan0.ToPointer() + y * bmData.Stride;
+                        for (int x = 0; x < width; x++, dst += 3, src += 3)
+                        {
+                            // SDK RGB and bitmap BGR rows may have different padding.
+                            dst[0] = src[2];
+                            dst[1] = src[1];
+                            dst[2] = src[0];
+                        }
+                    }
                 }
+                finally { bitmap.UnlockBits(bmData); }
+                return bitmap;
             }
-
-            bitmap.Unlock(bmData);
-            return bitmap;
+            catch
+            {
+                bitmap.Dispose();
+                throw;
+            }
         }
 
         /// <summary>
