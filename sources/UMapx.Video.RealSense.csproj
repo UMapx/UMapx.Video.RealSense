@@ -50,7 +50,7 @@
 
   <ItemGroup>
     <PackageReference Include="librealsense.x64" Version="2.45.2" />
-    <PackageReference Include="UMapx" Version="8.0.0.1" />
+    <PackageReference Include="UMapx.Video.Windows" Version="8.0.0.2" />
   </ItemGroup>
 
 </Project>
