@@ -11,7 +11,7 @@
 	<Authors>Valery Asiryan</Authors>
 	<Product>UMapx</Product>
 	<Copyright>Valery Asiryan, © 2015-2026</Copyright>
-	<Description>UMapx sub-library for interacting with Intel RealSense Depth cameras.</Description>
+	<Description>UMapx sub-library for interacting with Intel RealSense on Windows.</Description>
 	<PackageProjectUrl>https://github.com/UMapx/UMapx.Video.RealSense</PackageProjectUrl>
 	<RepositoryUrl>https://github.com/UMapx/UMapx.Video.RealSense</RepositoryUrl>
 	<RepositoryType>git</RepositoryType>

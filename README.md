@@ -1,5 +1,5 @@
 <p align="center"><img width="25%" src="https://raw.githubusercontent.com/UMapx/UMapx.Video.RealSense/main/docs/umapxnet_big.png" /></p>
-<p align="center">UMapx sub-library for color and depth capturing with Intel RealSense cameras</p>
+<p align="center">UMapx sub-library for interacting with Intel RealSense on Windows</p>
 
 # Installation
 Install **UMapx.Video.RealSense** to your project using [NuGet](https://www.nuget.org/packages/UMapx.Video.RealSense/) package manager.
