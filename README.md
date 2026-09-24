@@ -27,7 +27,7 @@ the example. Linux, macOS and x86 processes are not supported by this package.
 
 Regression tests cover Windows with .NET 8 in an x64 process. Building the repository
 requires the .NET 8 SDK, or a newer SDK with the .NET 8 runtime installed. The WPF example
-and its tests also require the .NET 8 Windows Desktop runtime.
+also requires the .NET 8 Windows Desktop runtime.
 ARM64 and .NET Framework are not covered by this test suite.
 
 The camera must provide RGB8 color and Z16 depth streams supported by the bundled SDK.
@@ -87,16 +87,14 @@ Run on Windows from the repository root:
 dotnet build UMapx.Video.RealSense.sln -c Release
 dotnet build examples/UMapx.Video.RealSense.Example.sln -c Release
 dotnet test tests/UMapx.Video.RealSense.Tests.csproj -c Release
-dotnet test examples/tests/UMapx.Video.RealSense.Example.Tests.csproj -c Release
 ```
 
-The root solution contains the library and its tests. The example and its WPF tests
-are in the separate solution under `examples`.
+The root solution contains the library and its tests. The WPF example is in the
+separate solution under `examples`.
 
 Tests use a software RealSense device and a simulated capture backend; they do not require
 a physical camera. They cover native SDK startup, depth alignment, row padding, conversion,
-capture errors, concurrent shutdown, disposal and restarts. The example tests cover frame
-display, error handling, reconnection and window shutdown. Sustained capture and USB
+capture errors, concurrent shutdown, disposal and restarts. Sustained capture and USB
 disconnect/reconnect still need testing on a physical device.
 
 To run the example:
